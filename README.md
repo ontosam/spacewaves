@@ -19,22 +19,19 @@ Once Pages is turned on (see below), the games live at:
 On the iPad, open the home link in Safari, tap the **Share** button, and choose
 **Add to Home Screen** — it then opens full-screen like a real app.
 
-## One-time setup to turn on GitHub Pages
+## GitHub Pages setup (already done)
 
-This only has to be done once, and it can't be automated from here — it's a
-setting in the repo:
+Pages is configured under **Settings → Pages** with:
 
-1. Go to the repo on GitHub → **Settings** → **Pages**.
-2. Under **Build and deployment → Source**, choose **GitHub Actions**.
-3. Go to the **Actions** tab → open the latest **Deploy to GitHub Pages**
-   run → click **Re-run jobs** (the first runs fail until step 2 is done).
-4. When the run is green, the links above are live — usually within a minute.
+- **Source:** Deploy from a branch
+- **Branch:** `main` + **`/ (root)`**
 
-After this one-time setup, every future push deploys automatically.
+With this mode, GitHub automatically rebuilds and republishes the site on every
+push to `main` — no extra workflow needed. You can watch builds under the
+**Actions** tab as **"pages build and deployment"**.
 
-> Tip: if you'd rather serve from `main`, merge this branch into `main` and the
-> same workflow will deploy from there (or switch Pages Source to
-> "Deploy from a branch" and pick the branch + `/ (root)`).
+A `.nojekyll` file is included so the files are served exactly as-is (Jekyll
+processing is skipped).
 
 ## Run locally (optional)
 
