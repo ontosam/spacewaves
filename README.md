@@ -26,9 +26,11 @@ setting in the repo:
 
 1. Go to the repo on GitHub → **Settings** → **Pages**.
 2. Under **Build and deployment → Source**, choose **GitHub Actions**.
-3. That's it. The included workflow (`.github/workflows/deploy-pages.yml`)
-   deploys automatically on every push to this branch. You can watch it under
-   the **Actions** tab; when it's green, the links above are live.
+3. Go to the **Actions** tab → open the latest **Deploy to GitHub Pages**
+   run → click **Re-run jobs** (the first runs fail until step 2 is done).
+4. When the run is green, the links above are live — usually within a minute.
+
+After this one-time setup, every future push deploys automatically.
 
 > Tip: if you'd rather serve from `main`, merge this branch into `main` and the
 > same workflow will deploy from there (or switch Pages Source to

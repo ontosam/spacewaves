@@ -30,12 +30,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Pages
+        # One-time manual step required first: Settings -> Pages ->
+        # Build and deployment -> Source -> "GitHub Actions".
+        # After that this runs automatically on every push to this branch.
         uses: actions/configure-pages@v5
-        with:
-          # Try to enable Pages automatically so no manual toggle is needed.
-          # If this fails, enable it once under Settings -> Pages (Source:
-          # GitHub Actions) and re-run this workflow.
-          enablement: true
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
