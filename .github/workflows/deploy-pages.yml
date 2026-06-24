@@ -31,6 +31,11 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          # Try to enable Pages automatically so no manual toggle is needed.
+          # If this fails, enable it once under Settings -> Pages (Source:
+          # GitHub Actions) and re-run this workflow.
+          enablement: true
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
