@@ -3,478 +3,69 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>Space Waves — Kid Edition</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Ezra's Games</title>
 <style>
-  :root {
-    --bg1: #0b1026;
-    --bg2: #1b1147;
-    --ink: #eaf2ff;
-  }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
-    margin: 0; height: 100%; overflow: hidden;
-    background: #06081a;
+    margin: 0; min-height: 100%; overflow-x: hidden;
+    background: linear-gradient(160deg, #1b1147 0%, #0b1026 60%, #06081a 100%);
     font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
-    color: var(--ink);
-    touch-action: none;
-    user-select: none;
+    color: #eaf2ff; user-select: none;
   }
-  #wrap {
-    position: fixed; inset: 0;
-    display: flex; align-items: center; justify-content: center;
+  .page {
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 32px 20px;
   }
-  canvas {
-    display: block;
-    width: 100%; height: 100%;
-    background: linear-gradient(160deg, var(--bg2), var(--bg1));
-  }
-
-  .overlay {
-    position: fixed; inset: 0;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    text-align: center;
-    padding: 24px;
-    background: radial-gradient(120% 120% at 50% 30%, rgba(40,30,90,.55), rgba(6,8,26,.92));
-    backdrop-filter: blur(3px);
-    z-index: 10;
-  }
-  .hidden { display: none !important; }
-
   h1 {
-    font-size: clamp(34px, 9vw, 72px);
-    margin: 0 0 6px;
-    letter-spacing: 2px;
-    text-shadow: 0 0 18px rgba(120,160,255,.7);
+    font-size: clamp(34px, 10vw, 72px); margin: 0 0 6px; text-align: center;
+    letter-spacing: 2px; text-shadow: 0 0 22px rgba(120,160,255,.7);
   }
-  h1 .sub {
-    display: block;
-    font-size: clamp(13px, 3.5vw, 20px);
-    letter-spacing: 6px;
-    color: #9fb6ff;
-    margin-top: 4px;
-  }
-  p.tip { font-size: clamp(15px, 4vw, 20px); color: #cdd9ff; max-width: 460px; line-height: 1.5; }
+  .sub { color: #9fb6ff; letter-spacing: 4px; margin-bottom: 28px; font-size: clamp(13px,3.5vw,18px); text-align:center; }
 
-  .speeds { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin: 18px 0 8px; }
-  .btn {
-    cursor: pointer; border: none; border-radius: 16px;
-    padding: 16px 22px; font-size: clamp(16px, 4.4vw, 22px); font-weight: bold;
-    color: #06081a; background: #ffd166;
-    box-shadow: 0 6px 0 #b9923a, 0 10px 22px rgba(0,0,0,.4);
-    transition: transform .06s ease, box-shadow .06s ease;
+  .cards { display: flex; flex-wrap: wrap; gap: 22px; justify-content: center; width: 100%; max-width: 760px; }
+  a.card {
+    flex: 1 1 300px; max-width: 340px; text-decoration: none; color: inherit;
+    border-radius: 26px; padding: 28px 24px; text-align: center;
+    box-shadow: 0 10px 0 rgba(0,0,0,.25), 0 18px 40px rgba(0,0,0,.45);
+    transition: transform .08s ease, box-shadow .08s ease;
   }
-  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b9923a, 0 6px 14px rgba(0,0,0,.4); }
-  .btn.speed { background: #8ad7ff; box-shadow: 0 6px 0 #4f93b3, 0 10px 22px rgba(0,0,0,.4); }
-  .btn.speed:active { box-shadow: 0 2px 0 #4f93b3, 0 6px 14px rgba(0,0,0,.4); }
-  .btn.speed .lab { display:block; font-size: .62em; font-weight: normal; opacity: .85; margin-top: 2px; }
-  .btn.speed.sel { outline: 4px solid #fff; }
+  a.card:active { transform: translateY(6px); box-shadow: 0 4px 0 rgba(0,0,0,.25), 0 10px 24px rgba(0,0,0,.45); }
+  .sw { background: linear-gradient(160deg, #6c5ce7, #3a2f8f); }
+  .bm { background: linear-gradient(160deg, #2aa3e8, #1565a8); }
 
-  .score-big { font-size: clamp(40px, 12vw, 90px); margin: 6px 0; }
-  .best { color: #9fb6ff; font-size: clamp(15px, 4vw, 20px); }
+  .emoji { font-size: clamp(56px, 16vw, 90px); line-height: 1; margin-bottom: 10px; }
+  .name { font-size: clamp(26px, 7vw, 38px); font-weight: bold; letter-spacing: 1px; }
+  .desc { color: #e7eeff; opacity: .9; margin-top: 8px; font-size: clamp(14px, 4vw, 18px); }
 
-  /* On-screen HUD */
-  #hud {
-    position: fixed; top: 14px; left: 0; right: 0;
-    display: flex; justify-content: center; gap: 28px;
-    font-size: clamp(20px, 6vw, 30px); font-weight: bold;
-    text-shadow: 0 0 10px rgba(0,0,0,.6);
-    pointer-events: none; z-index: 5;
+  .play {
+    display: inline-block; margin-top: 16px; padding: 12px 24px; border-radius: 14px;
+    background: #ffd166; color: #06081a; font-weight: bold; font-size: clamp(16px,4.4vw,20px);
+    box-shadow: 0 5px 0 #b9923a;
   }
-  #hud .lbl { font-size: .5em; color: #9fb6ff; display:block; text-align:center; }
+  footer { margin-top: 34px; color: #7e8bbf; font-size: 13px; text-align: center; }
 </style>
 </head>
 <body>
-<div id="wrap">
-  <canvas id="game"></canvas>
+<div class="page">
+  <h1>Ezra's Games 🚀</h1>
+  <div class="sub">PICK A GAME</div>
+  <div class="cards">
+    <a class="card sw" href="spacewaves/">
+      <div class="emoji">🚀</div>
+      <div class="name">Space Waves</div>
+      <div class="desc">Hold to fly up, let go to dive. Glide through the gaps!</div>
+      <span class="play">▶ Play</span>
+    </a>
+    <a class="card bm" href="ballmaster/">
+      <div class="emoji">🎯</div>
+      <div class="name">Ball Master</div>
+      <div class="desc">Aim and shoot. Match 3 colors to pop the balls!</div>
+      <span class="play">▶ Play</span>
+    </a>
+  </div>
+  <footer>Tip: tap the ⤴ Share button in Safari and "Add to Home Screen" for full-screen play.</footer>
 </div>
-
-<div id="hud" class="hidden">
-  <div><span class="lbl">SCORE</span><span id="hudScore">0</span></div>
-  <div><span class="lbl">BEST</span><span id="hudBest">0</span></div>
-</div>
-
-<!-- START SCREEN -->
-<div id="startScreen" class="overlay">
-  <h1>Space&nbsp;Waves<span class="sub">KID EDITION</span></h1>
-  <p class="tip"><b>Hold</b> anywhere to fly up.<br><b>Let go</b> to fly down.<br>Glide through the gaps! ✨</p>
-  <p class="tip" style="margin-top:2px">Pick how fast you want to go:</p>
-  <div class="speeds" id="speedPicker"></div>
-  <button class="btn" id="playBtn">▶ Play</button>
-</div>
-
-<!-- GAME OVER SCREEN -->
-<div id="overScreen" class="overlay hidden">
-  <h1 style="font-size:clamp(28px,8vw,56px)">Nice flying! 🚀</h1>
-  <div class="score-big" id="finalScore">0</div>
-  <div class="best">Best: <span id="bestScore">0</span></div>
-  <button class="btn" id="againBtn" style="margin-top:20px">↻ Play Again</button>
-  <button class="btn speed" id="menuBtn" style="margin-top:12px">⚙ Change Speed</button>
-</div>
-
-<script>
-(() => {
-  "use strict";
-
-  const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
-
-  // ---- Difficulty presets (the whole point: slow & gentle for little kids) ----
-  // speed       = how fast the world scrolls (px/sec at base scale)
-  // turn        = how sharply the ship curves
-  // gap         = vertical opening size as a fraction of screen height
-  // spacing     = horizontal distance between obstacles
-  // ramp        = how much it speeds up over time (0 = never speeds up)
-  const PRESETS = {
-    baby:   { label: "Baby",   sub: "super slow", speed: 95,  turn: 2.0, gap: 0.46, spacing: 430, ramp: 0.0  },
-    easy:   { label: "Easy",   sub: "for kids",   speed: 135, turn: 2.4, gap: 0.40, spacing: 380, ramp: 0.10 },
-    normal: { label: "Normal", sub: "a challenge",speed: 185, turn: 2.9, gap: 0.34, spacing: 340, ramp: 0.22 },
-  };
-  let difficulty = localStorage.getItem("sw_diff") || "easy";
-
-  // ---- Canvas sizing ----
-  let W = 0, H = 0, DPR = 1;
-  function resize() {
-    DPR = Math.min(window.devicePixelRatio || 1, 2);
-    W = window.innerWidth; H = window.innerHeight;
-    canvas.width = Math.floor(W * DPR);
-    canvas.height = Math.floor(H * DPR);
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  }
-  window.addEventListener("resize", resize);
-  resize();
-
-  // ---- Stars background ----
-  let stars = [];
-  function makeStars() {
-    stars = [];
-    const n = Math.round((W * H) / 9000);
-    for (let i = 0; i < n; i++) {
-      stars.push({
-        x: Math.random() * W,
-        y: Math.random() * H,
-        r: Math.random() * 1.6 + 0.4,
-        s: Math.random() * 0.5 + 0.2,
-      });
-    }
-  }
-  makeStars();
-  window.addEventListener("resize", makeStars);
-
-  // ---- Game state ----
-  const STATE = { MENU: 0, PLAY: 1, OVER: 2 };
-  let state = STATE.MENU;
-
-  let ship, obstacles, trail, particles;
-  let scrollSpeed, baseSpeed, cfg;
-  let distance, score, holding, started;
-  let best = +(localStorage.getItem("sw_best_" + difficulty) || 0);
-
-  function reset() {
-    cfg = PRESETS[difficulty];
-    baseSpeed = cfg.speed;
-    scrollSpeed = baseSpeed;
-    ship = { x: W * 0.28, y: H * 0.5, vy: 0, angle: 0 };
-    obstacles = [];
-    trail = [];
-    particles = [];
-    distance = 0;
-    score = 0;
-    holding = false;
-    started = false; // ship waits until first tap so kids aren't surprised
-    best = +(localStorage.getItem("sw_best_" + difficulty) || 0);
-    // pre-fill a few obstacles ahead
-    let x = W + 200;
-    for (let i = 0; i < 6; i++) { obstacles.push(makeObstacle(x)); x += cfg.spacing; }
-    updateHud();
-  }
-
-  function makeObstacle(x) {
-    const gapH = H * cfg.gap;
-    const margin = 60;
-    const gapY = margin + gapH / 2 + Math.random() * (H - gapH - margin * 2);
-    return { x, gapY, gapH, passed: false };
-  }
-
-  // ---- Input: hold = up, release = down ----
-  function press() {
-    if (state === STATE.PLAY) { holding = true; started = true; }
-  }
-  function release() { holding = false; }
-
-  canvas.addEventListener("pointerdown", (e) => { e.preventDefault(); press(); });
-  window.addEventListener("pointerup", release);
-  window.addEventListener("pointercancel", release);
-  window.addEventListener("keydown", (e) => {
-    if (e.code === "Space" || e.code === "ArrowUp") { e.preventDefault(); press(); }
-  });
-  window.addEventListener("keyup", (e) => {
-    if (e.code === "Space" || e.code === "ArrowUp") { e.preventDefault(); release(); }
-  });
-
-  // ---- Loop ----
-  let last = 0;
-  function frame(t) {
-    const dt = Math.min((t - last) / 1000, 0.033) || 0;
-    last = t;
-    if (state === STATE.PLAY) update(dt);
-    draw();
-    requestAnimationFrame(frame);
-  }
-
-  function update(dt) {
-    // gentle speed ramp the longer you survive
-    if (cfg.ramp > 0) {
-      scrollSpeed = baseSpeed + Math.min(distance * cfg.ramp * 0.02, baseSpeed * 0.8);
-    }
-
-    // scenery drifts even before you start, but ship only flies after first tap
-    const move = scrollSpeed * dt;
-
-    // ship vertical control
-    if (started) {
-      const accel = cfg.turn * 600;
-      ship.vy += (holding ? -accel : accel) * dt;
-      // clamp so it feels floaty, not twitchy
-      const maxV = cfg.turn * 150;
-      ship.vy = Math.max(-maxV, Math.min(maxV, ship.vy));
-      ship.y += ship.vy * dt;
-      ship.angle = Math.atan2(ship.vy, scrollSpeed * 0.9);
-
-      // trail
-      trail.push({ x: ship.x, y: ship.y });
-      if (trail.length > 26) trail.shift();
-
-      // walls = lose
-      if (ship.y < 14 || ship.y > H - 14) return gameOver();
-    }
-
-    // move obstacles
-    for (const o of obstacles) o.x -= move;
-    // recycle / spawn
-    while (obstacles.length && obstacles[0].x < -80) obstacles.shift();
-    let lastX = obstacles.length ? obstacles[obstacles.length - 1].x : W;
-    while (lastX < W + cfg.spacing) {
-      lastX += cfg.spacing;
-      obstacles.push(makeObstacle(lastX));
-    }
-
-    if (started) {
-      distance += move;
-      // scoring + collision
-      for (const o of obstacles) {
-        if (!o.passed && o.x + 22 < ship.x) {
-          o.passed = true;
-          score++;
-          burst(ship.x, ship.y, "#9be7a0");
-          updateHud();
-          if (score > best) { best = score; localStorage.setItem("sw_best_" + difficulty, best); }
-        }
-        if (hitObstacle(o)) return gameOver();
-      }
-    }
-
-    // particles
-    for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
-    particles = particles.filter((p) => p.life > 0);
-
-    // stars
-    for (const s of stars) {
-      s.x -= scrollSpeed * s.s * dt;
-      if (s.x < 0) { s.x = W; s.y = Math.random() * H; }
-    }
-  }
-
-  const BAR_W = 26; // obstacle thickness
-  function hitObstacle(o) {
-    const r = 12; // ship radius (forgiving)
-    if (ship.x + r < o.x || ship.x - r > o.x + BAR_W) return false;
-    const top = o.gapY - o.gapH / 2;
-    const bot = o.gapY + o.gapH / 2;
-    return ship.y - r < top || ship.y + r > bot;
-  }
-
-  function burst(x, y, color) {
-    for (let i = 0; i < 10; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const sp = Math.random() * 120 + 40;
-      particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.5, color });
-    }
-  }
-
-  function gameOver() {
-    burst(ship.x, ship.y, "#ff9a76");
-    burst(ship.x, ship.y, "#ffd166");
-    state = STATE.OVER;
-    document.getElementById("finalScore").textContent = score;
-    document.getElementById("bestScore").textContent = best;
-    document.getElementById("overScreen").classList.remove("hidden");
-    document.getElementById("hud").classList.add("hidden");
-  }
-
-  // ---- Drawing ----
-  function draw() {
-    ctx.clearRect(0, 0, W, H);
-
-    // stars
-    ctx.save();
-    for (const s of stars) {
-      ctx.globalAlpha = 0.4 + s.s;
-      ctx.fillStyle = "#cfe0ff";
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-
-    // obstacles (rounded gates with a glow)
-    for (const o of obstacles) {
-      const top = o.gapY - o.gapH / 2;
-      const bot = o.gapY + o.gapH / 2;
-      drawGate(o.x, 0, BAR_W, top);
-      drawGate(o.x, bot, BAR_W, H - bot);
-    }
-
-    // trail
-    if (state === STATE.PLAY && started && trail.length > 1) {
-      ctx.lineCap = "round";
-      for (let i = 1; i < trail.length; i++) {
-        const a = i / trail.length;
-        ctx.strokeStyle = `rgba(138,215,255,${a * 0.6})`;
-        ctx.lineWidth = a * 10;
-        ctx.beginPath();
-        ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
-        ctx.lineTo(trail[i].x, trail[i].y);
-        ctx.stroke();
-      }
-    }
-
-    // ship
-    if (state !== STATE.MENU) drawShip();
-
-    // particles
-    for (const p of particles) {
-      ctx.globalAlpha = Math.max(0, p.life * 2);
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-
-    // "tap to start" hint
-    if (state === STATE.PLAY && !started) {
-      ctx.fillStyle = "rgba(255,255,255,.92)";
-      ctx.font = "bold " + Math.round(Math.min(W, H) * 0.06) + "px Trebuchet MS, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("Hold to fly! 👆", W / 2, H * 0.30);
-    }
-  }
-
-  function drawGate(x, y, w, h) {
-    if (h <= 0) return;
-    const r = 12;
-    ctx.fillStyle = "#6c5ce7";
-    ctx.strokeStyle = "#b3a7ff";
-    ctx.lineWidth = 3;
-    roundRect(x, y - 0, w, h, r);
-    ctx.fill();
-    ctx.stroke();
-  }
-
-  function roundRect(x, y, w, h, r) {
-    r = Math.min(r, w / 2, Math.abs(h) / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-
-  function drawShip() {
-    ctx.save();
-    ctx.translate(ship.x, ship.y);
-    ctx.rotate(ship.angle || 0);
-    // glow
-    ctx.shadowColor = "#8ad7ff";
-    ctx.shadowBlur = 18;
-    // body
-    ctx.fillStyle = "#ffd166";
-    ctx.beginPath();
-    ctx.moveTo(16, 0);
-    ctx.lineTo(-12, -10);
-    ctx.lineTo(-7, 0);
-    ctx.lineTo(-12, 10);
-    ctx.closePath();
-    ctx.fill();
-    // window
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "#2a2a4a";
-    ctx.beginPath();
-    ctx.arc(2, 0, 4, 0, Math.PI * 2);
-    ctx.fill();
-    // flame when holding (thrust)
-    if (holding && started) {
-      ctx.fillStyle = "#ff7b54";
-      ctx.beginPath();
-      ctx.moveTo(-7, -5);
-      ctx.lineTo(-20 - Math.random() * 8, 0);
-      ctx.lineTo(-7, 5);
-      ctx.closePath();
-      ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  // ---- HUD / UI ----
-  function updateHud() {
-    document.getElementById("hudScore").textContent = score;
-    document.getElementById("hudBest").textContent = Math.max(best, score);
-  }
-
-  // build speed picker
-  const picker = document.getElementById("speedPicker");
-  function buildPicker() {
-    picker.innerHTML = "";
-    for (const key of Object.keys(PRESETS)) {
-      const p = PRESETS[key];
-      const b = document.createElement("button");
-      b.className = "btn speed" + (key === difficulty ? " sel" : "");
-      b.innerHTML = p.label + '<span class="lab">' + p.sub + "</span>";
-      b.onclick = () => {
-        difficulty = key;
-        localStorage.setItem("sw_diff", key);
-        buildPicker();
-      };
-      picker.appendChild(b);
-    }
-  }
-  buildPicker();
-
-  function startGame() {
-    reset();
-    state = STATE.PLAY;
-    document.getElementById("startScreen").classList.add("hidden");
-    document.getElementById("overScreen").classList.add("hidden");
-    document.getElementById("hud").classList.remove("hidden");
-  }
-
-  function showMenu() {
-    state = STATE.MENU;
-    buildPicker();
-    document.getElementById("startScreen").classList.remove("hidden");
-    document.getElementById("overScreen").classList.add("hidden");
-    document.getElementById("hud").classList.add("hidden");
-  }
-
-  document.getElementById("playBtn").onclick = startGame;
-  document.getElementById("againBtn").onclick = startGame;
-  document.getElementById("menuBtn").onclick = showMenu;
-
-  requestAnimationFrame(frame);
-})();
-</script>
 </body>
 </html>

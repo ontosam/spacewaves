@@ -1,48 +1,44 @@
-# Space Waves — Kid Edition 🚀
+# Ezra's Games 🚀🎯
 
-A gentle, one-button space-flying game inspired by *Space Waves* on CrazyGames,
-tuned to be playable for a young kid (made for Ezra).
+Two gentle, kid-friendly browser games, tuned to be easy for a young child:
 
-## How to play
-- **Hold** anywhere on screen (or hold **Space** / **Up arrow**) to fly up.
-- **Let go** to drift down.
-- Glide through the gaps in the purple gates. Each gate you pass is a point!
-- Touch a wall or a gate and the run ends — then just tap **Play Again**.
+- **[Space Waves](spacewaves/)** — hold to fly up, let go to dive, glide through the gaps.
+- **[Ball Master](ballmaster/)** — aim and shoot, match 3+ colors to pop the balls.
 
-The ship waits for your first tap before it starts moving, so there's no
-surprise launch.
+Both are single static HTML files with no dependencies, so they run great on an
+iPad in Safari.
 
-## Speeds
-Pick one on the start screen (your choice is remembered):
+## ▶ Play online (GitHub Pages)
 
-| Speed  | Feel          | Who it's for          |
-|--------|---------------|-----------------------|
-| Baby   | super slow    | youngest kids, never speeds up |
-| Easy   | for kids      | the default, big gaps, gentle ramp |
-| Normal | a challenge   | when they're ready for more |
+Once Pages is turned on (see below), the games live at:
 
-You can change speed any time from the start screen or the **Change Speed**
-button after a run.
+- **Home / game picker:** `https://ontosam.github.io/spacewaves/`
+- Space Waves: `https://ontosam.github.io/spacewaves/spacewaves/`
+- Ball Master: `https://ontosam.github.io/spacewaves/ballmaster/`
 
-## Running it
-It's a single file with no dependencies. Just open `index.html` in any browser,
-or serve the folder:
+On the iPad, open the home link in Safari, tap the **Share** button, and choose
+**Add to Home Screen** — it then opens full-screen like a real app.
+
+## One-time setup to turn on GitHub Pages
+
+This only has to be done once, and it can't be automated from here — it's a
+setting in the repo:
+
+1. Go to the repo on GitHub → **Settings** → **Pages**.
+2. Under **Build and deployment → Source**, choose **GitHub Actions**.
+3. That's it. The included workflow (`.github/workflows/deploy-pages.yml`)
+   deploys automatically on every push to this branch. You can watch it under
+   the **Actions** tab; when it's green, the links above are live.
+
+> Tip: if you'd rather serve from `main`, merge this branch into `main` and the
+> same workflow will deploy from there (or switch Pages Source to
+> "Deploy from a branch" and pick the branch + `/ (root)`).
+
+## Run locally (optional)
 
 ```bash
 python3 -m http.server 8000
-# then open http://localhost:8000
+# then open http://localhost:8000/
 ```
 
-Works great on a phone or tablet (touch) and on a computer (Space/Up arrow).
-
-## Tuning it further
-All the difficulty knobs live in the `PRESETS` object near the top of the
-`<script>` in `index.html`:
-
-- `speed` — how fast the world scrolls
-- `turn` — how sharply the ship curves
-- `gap` — size of the opening (fraction of screen height; bigger = easier)
-- `spacing` — distance between gates (bigger = more reaction time)
-- `ramp` — how much it speeds up over time (`0` = never speeds up)
-
-Make `gap` bigger or `speed` smaller for an even easier game.
+Each game folder has its own README with difficulty knobs you can tweak.
