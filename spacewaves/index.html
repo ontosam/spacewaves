@@ -70,6 +70,10 @@
   .btn.speed:active { box-shadow: 0 2px 0 #4f93b3, 0 6px 14px rgba(0,0,0,.4); }
   .btn.speed .lab { display:block; font-size: .62em; font-weight: normal; opacity: .85; margin-top: 2px; }
   .btn.speed.sel { outline: 4px solid #fff; }
+  .btn.alt { background: #b3a7ff; box-shadow: 0 6px 0 #6c5ce7, 0 10px 22px rgba(0,0,0,.4); }
+  .btn.alt:active { box-shadow: 0 2px 0 #6c5ce7, 0 6px 14px rgba(0,0,0,.4); }
+  .btn.green { background: #9be7a0; box-shadow: 0 6px 0 #4f9d57, 0 10px 22px rgba(0,0,0,.4); }
+  .btn.green:active { box-shadow: 0 2px 0 #4f9d57, 0 6px 14px rgba(0,0,0,.4); }
 
   .score-big { font-size: clamp(40px, 12vw, 90px); margin: 6px 0; }
   .best { color: #9fb6ff; font-size: clamp(15px, 4vw, 20px); }
@@ -83,6 +87,55 @@
     pointer-events: none; z-index: 5;
   }
   #hud .lbl { font-size: .5em; color: #9fb6ff; display:block; text-align:center; }
+
+  /* ---- Level map ---- */
+  #mapScreen { justify-content: flex-start; padding: 0; }
+  .map-head {
+    width: 100%; flex: 0 0 auto;
+    padding: 18px 18px 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    background: linear-gradient(180deg, rgba(6,8,26,.9), rgba(6,8,26,0));
+  }
+  .map-head h1 { font-size: clamp(26px, 7vw, 48px); margin: 0; }
+  .map-scroll {
+    flex: 1 1 auto; width: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 8px 16px 32px;
+  }
+  .level-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 16px;
+    max-width: 720px; margin: 0 auto;
+  }
+  .level-btn {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border: none; border-radius: 20px;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: bold; color: #06081a;
+    background: #ffd166;
+    box-shadow: 0 6px 0 #b9923a, 0 10px 18px rgba(0,0,0,.4);
+    transition: transform .06s ease, box-shadow .06s ease;
+    font-size: clamp(22px, 6vw, 34px);
+    min-height: 88px;
+  }
+  .level-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b9923a, 0 6px 12px rgba(0,0,0,.4); }
+  .level-btn .emoji { font-size: .7em; line-height: 1; }
+  .level-btn .num { line-height: 1; }
+  .level-btn .stars { font-size: .42em; margin-top: 4px; letter-spacing: 1px; height: 1em; }
+  .level-btn.locked {
+    background: #2a3358; color: #6b78a8;
+    box-shadow: 0 6px 0 #182142, 0 8px 14px rgba(0,0,0,.4);
+    cursor: default;
+  }
+  .level-btn.locked:active { transform: none; }
+  .level-btn.done { background: #9be7a0; box-shadow: 0 6px 0 #4f9d57, 0 10px 18px rgba(0,0,0,.4); }
+  .level-btn.done:active { box-shadow: 0 2px 0 #4f9d57, 0 6px 12px rgba(0,0,0,.4); }
+  .map-speeds { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .map-speeds .btn.speed { padding: 10px 16px; font-size: clamp(13px,3.6vw,18px); }
+  .stars-row { font-size: clamp(28px, 8vw, 54px); margin: 8px 0; letter-spacing: 6px; }
+  .ov-btns { display:flex; flex-direction:column; gap:12px; margin-top:18px; }
 </style>
 </head>
 <body>
@@ -91,26 +144,48 @@
 </div>
 
 <div id="hud" class="hidden">
-  <div><span class="lbl">SCORE</span><span id="hudScore">0</span></div>
-  <div><span class="lbl">BEST</span><span id="hudBest">0</span></div>
+  <div><span class="lbl">LEVEL</span><span id="hudLevel">1</span></div>
+  <div><span class="lbl">GATE</span><span id="hudGate">0/0</span></div>
 </div>
 
 <!-- START SCREEN -->
 <div id="startScreen" class="overlay">
   <h1>Space&nbsp;Waves<span class="sub">KID EDITION</span></h1>
   <p class="tip"><b>Hold</b> anywhere to fly up.<br><b>Let go</b> to fly down.<br>Glide through the gaps! ✨</p>
-  <p class="tip" style="margin-top:2px">Pick how fast you want to go:</p>
-  <div class="speeds" id="speedPicker"></div>
-  <button class="btn" id="playBtn">▶ Play</button>
+  <button class="btn" id="playBtn" style="margin-top:16px">▶ Play</button>
 </div>
 
-<!-- GAME OVER SCREEN -->
+<!-- LEVEL MAP -->
+<div id="mapScreen" class="overlay hidden">
+  <div class="map-head">
+    <h1>Pick a Level 🗺️</h1>
+    <div class="map-speeds" id="speedPicker"></div>
+  </div>
+  <div class="map-scroll">
+    <div class="level-grid" id="levelGrid"></div>
+  </div>
+</div>
+
+<!-- LEVEL COMPLETE -->
+<div id="winScreen" class="overlay hidden">
+  <h1 style="font-size:clamp(28px,8vw,56px)">Level Complete! 🎉</h1>
+  <div class="stars-row" id="winStars">⭐</div>
+  <div class="best" id="winSub">Great flying!</div>
+  <div class="ov-btns">
+    <button class="btn green" id="nextBtn">▶ Next Level</button>
+    <button class="btn alt" id="winMapBtn">🗺 Level Map</button>
+    <button class="btn speed" id="replayBtn">↻ Replay</button>
+  </div>
+</div>
+
+<!-- TRY AGAIN (crash) -->
 <div id="overScreen" class="overlay hidden">
-  <h1 style="font-size:clamp(28px,8vw,56px)">Nice flying! 🚀</h1>
-  <div class="score-big" id="finalScore">0</div>
-  <div class="best">Best: <span id="bestScore">0</span></div>
-  <button class="btn" id="againBtn" style="margin-top:20px">↻ Play Again</button>
-  <button class="btn speed" id="menuBtn" style="margin-top:12px">⚙ Change Speed</button>
+  <h1 style="font-size:clamp(28px,8vw,56px)">Oops! 💫</h1>
+  <div class="best" id="overSub">You can do it — try again!</div>
+  <div class="ov-btns">
+    <button class="btn" id="againBtn">↻ Try Again</button>
+    <button class="btn alt" id="overMapBtn">🗺 Level Map</button>
+  </div>
 </div>
 
 <script>
@@ -120,18 +195,77 @@
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
 
-  // ---- Difficulty presets (the whole point: slow & gentle for little kids) ----
-  // speed       = how fast the world scrolls (px/sec at base scale)
-  // turn        = how sharply the ship curves
-  // gap         = vertical opening size as a fraction of screen height
-  // spacing     = horizontal distance between obstacles
-  // ramp        = how much it speeds up over time (0 = never speeds up)
-  const PRESETS = {
-    baby:   { label: "Baby",   sub: "super slow", speed: 95,  turn: 2.0, gap: 0.46, spacing: 430, ramp: 0.0  },
-    easy:   { label: "Easy",   sub: "for kids",   speed: 135, turn: 2.4, gap: 0.40, spacing: 380, ramp: 0.10 },
-    normal: { label: "Normal", sub: "a challenge",speed: 185, turn: 2.9, gap: 0.34, spacing: 340, ramp: 0.22 },
+  // ---- Global gentleness multiplier (parent-controlled). Scales every level's speed. ----
+  // mult = scroll-speed multiplier; turn = ship curviness multiplier
+  const SPEEDS = {
+    baby:   { label: "Baby",   sub: "super slow", mult: 0.72, turn: 0.85 },
+    easy:   { label: "Easy",   sub: "for kids",   mult: 1.0,  turn: 1.0  },
+    normal: { label: "Normal", sub: "a challenge",mult: 1.25, turn: 1.12 },
   };
-  let difficulty = localStorage.getItem("sw_diff") || "easy";
+
+  // ---- Level definitions ----
+  // gap     = vertical opening as a fraction of screen height (big = easy)
+  // spacing = horizontal px between gates (big = easy, more reaction time)
+  // speed   = scroll speed px/sec at base scale (small = easy)
+  // goal    = number of gates to pass to finish the level
+  // pattern = placement style (see makeObstacle): gates|tunnel|zigzag|narrow|wave|breather
+  // tint    = optional background tint [bg2, bg1]
+  const LEVELS = [
+    // 1-4: trivially easy, teach controls
+    { name: "Hello!",      emoji: "🌟", goal: 8,  gap: 0.52, spacing: 440, speed: 95,  pattern: "gates",    tint: ["#1b1147", "#0b1026"] },
+    { name: "Float",       emoji: "☁️", goal: 8,  gap: 0.50, spacing: 430, speed: 100, pattern: "gates",    tint: ["#152a4a", "#08111f"] },
+    { name: "Up & Down",   emoji: "🎈", goal: 9,  gap: 0.50, spacing: 420, speed: 105, pattern: "wave",     tint: ["#1d1640", "#0a0a1e"] },
+    { name: "Easy Peasy",  emoji: "🍭", goal: 9,  gap: 0.48, spacing: 410, speed: 110, pattern: "gates",    tint: ["#2a1840", "#0e0820"] },
+    // 5: breather
+    { name: "Rest Stop",   emoji: "🛌", goal: 8,  gap: 0.56, spacing: 440, speed: 100, pattern: "breather", tint: ["#123a3a", "#06181a"] },
+    // 6-9: introduce patterns gently
+    { name: "Zigzag",      emoji: "⚡", goal: 10, gap: 0.46, spacing: 400, speed: 115, pattern: "zigzag",   tint: ["#2a1640", "#0c0820"] },
+    { name: "Tunnel",      emoji: "🚇", goal: 10, gap: 0.46, spacing: 360, speed: 115, pattern: "tunnel",   tint: ["#10204a", "#060c1f"] },
+    { name: "Big Wave",    emoji: "🌊", goal: 10, gap: 0.45, spacing: 390, speed: 118, pattern: "wave",     tint: ["#0d2f44", "#04141d"] },
+    { name: "Wiggle",      emoji: "🐍", goal: 11, gap: 0.44, spacing: 380, speed: 120, pattern: "zigzag",   tint: ["#23163f", "#0b0820"] },
+    // 10: breather
+    { name: "Cozy",        emoji: "🧸", goal: 9,  gap: 0.54, spacing: 430, speed: 110, pattern: "breather", tint: ["#3a2410", "#1a0e06"] },
+    // 11-14: mix it up
+    { name: "Narrow",      emoji: "🔑", goal: 11, gap: 0.44, spacing: 380, speed: 122, pattern: "narrow",   tint: ["#2a1636", "#0d0818"] },
+    { name: "Caves",       emoji: "🦇", goal: 11, gap: 0.43, spacing: 350, speed: 124, pattern: "tunnel",   tint: ["#1a1030", "#070514"] },
+    { name: "Ripples",     emoji: "💧", goal: 12, gap: 0.43, spacing: 380, speed: 126, pattern: "wave",     tint: ["#0d2a44", "#04111d"] },
+    { name: "Bouncy",      emoji: "🦘", goal: 12, gap: 0.42, spacing: 370, speed: 128, pattern: "zigzag",   tint: ["#1d3a16", "#0a1808"] },
+    // 15: breather
+    { name: "Picnic",      emoji: "🧺", goal: 10, gap: 0.53, spacing: 420, speed: 116, pattern: "breather", tint: ["#3a2a10", "#1a1206"] },
+    // 16-19
+    { name: "Slalom",      emoji: "⛷️", goal: 12, gap: 0.42, spacing: 360, speed: 130, pattern: "zigzag",   tint: ["#16263f", "#070f1d"] },
+    { name: "Pipes",       emoji: "🪈", goal: 13, gap: 0.41, spacing: 350, speed: 132, pattern: "tunnel",   tint: ["#2a163a", "#0d081a"] },
+    { name: "Keyhole",     emoji: "🗝️", goal: 13, gap: 0.41, spacing: 370, speed: 134, pattern: "narrow",   tint: ["#1a1636", "#080718"] },
+    { name: "Tide",        emoji: "🌀", goal: 13, gap: 0.41, spacing: 370, speed: 136, pattern: "wave",     tint: ["#0d2e44", "#04131d"] },
+    // 20: breather
+    { name: "Hot Cocoa",   emoji: "☕", goal: 11, gap: 0.52, spacing: 410, speed: 124, pattern: "breather", tint: ["#3a1e10", "#1a0e06"] },
+    // 21-24: hardest, still gentle
+    { name: "Comet",       emoji: "☄️", goal: 13, gap: 0.40, spacing: 350, speed: 140, pattern: "zigzag",   tint: ["#2a1430", "#0d0716"] },
+    { name: "Wormhole",    emoji: "🕳️", goal: 14, gap: 0.40, spacing: 340, speed: 142, pattern: "tunnel",   tint: ["#101830", "#050813"] },
+    { name: "Squeeze",     emoji: "🪐", goal: 14, gap: 0.39, spacing: 360, speed: 144, pattern: "narrow",   tint: ["#2a1838", "#0d0818"] },
+    { name: "Galaxy",      emoji: "🌌", goal: 14, gap: 0.40, spacing: 350, speed: 146, pattern: "wave",     tint: ["#1a1242", "#070520"] },
+  ];
+
+  // ---- Persistence ----
+  const SAVE_KEY = "sw_progress_v2";
+  // progress = { unlocked: highest unlocked level index (1-based), stars: {levelIndex: 0..3}, speed: key }
+  function loadProgress() {
+    let p = null;
+    try { p = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch (e) { p = null; }
+    if (!p || typeof p !== "object") p = {};
+    let unlocked = parseInt(p.unlocked, 10);
+    if (!Number.isFinite(unlocked) || unlocked < 1) unlocked = 1;
+    if (unlocked > LEVELS.length) unlocked = LEVELS.length;
+    const stars = (p.stars && typeof p.stars === "object") ? p.stars : {};
+    let speed = p.speed;
+    if (!SPEEDS[speed]) speed = "easy";
+    return { unlocked, stars, speed };
+  }
+  function saveProgress() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (e) {}
+  }
+  let progress = loadProgress();
+  let difficulty = progress.speed;
 
   // ---- Canvas sizing ----
   let W = 0, H = 0, DPR = 1;
@@ -163,38 +297,120 @@
   window.addEventListener("resize", makeStars);
 
   // ---- Game state ----
-  const STATE = { MENU: 0, PLAY: 1, OVER: 2 };
+  const STATE = { MENU: 0, MAP: 1, PLAY: 2, WIN: 3, OVER: 4 };
   let state = STATE.MENU;
 
-  let ship, obstacles = [], trail = [], particles = [];
-  let scrollSpeed, baseSpeed, cfg;
-  let distance, score, holding, started;
-  let best = +(localStorage.getItem("sw_best_" + difficulty) || 0);
+  // Everything draw() touches is initialized up front so the very first frame
+  // (state = MENU) can never iterate an uninitialized array.
+  let ship = { x: 0, y: 0, vy: 0, angle: 0 };
+  let obstacles = [], trail = [], particles = [];
+  let scrollSpeed = 100, cfg = null;
+  let level = 0;          // 0-based index into LEVELS for the level being played
+  let levelDef = null;
+  let goal = 0;           // gates needed
+  let gatesPassed = 0;    // gates passed this attempt
+  let score = 0;          // alias of gatesPassed for the test hook
+  let holding = false, started = false;
+  let crashed = false;    // did the player crash at least once on this level attempt-chain
+  let spawnIndex = 0;     // running counter to drive patterns
+  let bgTint = ["#1b1147", "#0b1026"];
 
-  function reset() {
-    cfg = PRESETS[difficulty];
-    baseSpeed = cfg.speed;
-    scrollSpeed = baseSpeed;
+  function applyTint(tint) {
+    bgTint = tint || ["#1b1147", "#0b1026"];
+    canvas.style.background = "linear-gradient(160deg, " + bgTint[0] + ", " + bgTint[1] + ")";
+  }
+
+  function startLevel(i, keepCrashFlag) {
+    if (i < 0) i = 0;
+    if (i >= LEVELS.length) i = LEVELS.length - 1;
+    level = i;
+    levelDef = LEVELS[i];
+    const sp = SPEEDS[difficulty] || SPEEDS.easy;
+    // cfg holds the effective tuning for this level + global multiplier
+    cfg = {
+      gap: levelDef.gap,
+      spacing: levelDef.spacing,
+      speed: levelDef.speed * sp.mult,
+      turn: 2.4 * sp.turn,
+      pattern: levelDef.pattern,
+    };
+    goal = levelDef.goal;
+    scrollSpeed = cfg.speed;
     ship = { x: W * 0.28, y: H * 0.5, vy: 0, angle: 0 };
     obstacles = [];
     trail = [];
     particles = [];
-    distance = 0;
+    gatesPassed = 0;
     score = 0;
     holding = false;
     started = false; // ship waits until first tap so kids aren't surprised
-    best = +(localStorage.getItem("sw_best_" + difficulty) || 0);
-    // pre-fill a few obstacles ahead
+    spawnIndex = 0;
+    if (!keepCrashFlag) crashed = false;
+    applyTint(levelDef.tint);
+
+    // pre-fill obstacles ahead
     let x = W + 200;
-    for (let i = 0; i < 6; i++) { obstacles.push(makeObstacle(x)); x += cfg.spacing; }
+    for (let k = 0; k < 5; k++) { obstacles.push(makeObstacle(x)); x += cfg.spacing; }
+
+    state = STATE.PLAY;
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("mapScreen").classList.add("hidden");
+    document.getElementById("winScreen").classList.add("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("hud").classList.remove("hidden");
     updateHud();
   }
 
+  // ---- Obstacle / pattern generation ----
+  function clampGapY(gapY, gapH) {
+    const margin = 50;
+    const minC = margin + gapH / 2;
+    const maxC = H - margin - gapH / 2;
+    if (minC > maxC) return H / 2;
+    return Math.max(minC, Math.min(maxC, gapY));
+  }
+
   function makeObstacle(x) {
-    const gapH = H * cfg.gap;
-    const margin = 60;
-    const gapY = margin + gapH / 2 + Math.random() * (H - gapH - margin * 2);
-    return { x, gapY, gapH, passed: false };
+    const idx = spawnIndex++;
+    const pat = cfg.pattern;
+    let gapFrac = cfg.gap;
+    let gapY;
+
+    // compute gap height (fraction of screen), pattern may shrink it
+    if (pat === "narrow") {
+      // shrink gently toward the end of the level, but never tiny
+      const t = goal > 1 ? Math.min(idx / goal, 1) : 0;
+      gapFrac = cfg.gap - 0.06 * t; // at most 0.06 smaller
+    }
+    const gapH = H * Math.max(0.34, gapFrac);
+
+    if (pat === "wave") {
+      // gentle sine: center rises and falls smoothly
+      const amp = (H * 0.5 - gapH / 2 - 50) * 0.85;
+      gapY = H / 2 + Math.sin(idx * 0.6) * Math.max(0, amp);
+    } else if (pat === "zigzag") {
+      // alternate high / low
+      const high = (idx % 2 === 0);
+      const span = (H * 0.5 - gapH / 2 - 60) * 0.8;
+      gapY = H / 2 + (high ? -span : span);
+    } else if (pat === "tunnel") {
+      // groups of 3 gates share a similar height to form a channel
+      const group = Math.floor(idx / 3);
+      const seed = Math.sin(group * 12.9898) * 43758.5453;
+      const r = seed - Math.floor(seed); // 0..1 pseudo-random per group
+      const base = 60 + gapH / 2 + r * (H - gapH - 120);
+      const jitter = (Math.random() - 0.5) * 30; // tiny wobble within channel
+      gapY = base + jitter;
+    } else if (pat === "breather") {
+      // wide, calm, mostly centered with small drift
+      gapY = H / 2 + (Math.random() - 0.5) * (H * 0.18);
+    } else {
+      // "gates": simple single gates at varied heights
+      const margin = 60;
+      gapY = margin + gapH / 2 + Math.random() * (H - gapH - margin * 2);
+    }
+
+    return { x, gapY: clampGapY(gapY, gapH), gapH, passed: false };
   }
 
   // ---- Input: hold = up, release = down ----
@@ -224,35 +440,25 @@
   }
 
   function update(dt) {
-    // gentle speed ramp the longer you survive
-    if (cfg.ramp > 0) {
-      scrollSpeed = baseSpeed + Math.min(distance * cfg.ramp * 0.02, baseSpeed * 0.8);
-    }
-
-    // scenery drifts even before you start, but ship only flies after first tap
     const move = scrollSpeed * dt;
 
-    // ship vertical control
+    // ship vertical control (only after first tap)
     if (started) {
       const accel = cfg.turn * 600;
       ship.vy += (holding ? -accel : accel) * dt;
-      // clamp so it feels floaty, not twitchy
       const maxV = cfg.turn * 150;
       ship.vy = Math.max(-maxV, Math.min(maxV, ship.vy));
       ship.y += ship.vy * dt;
       ship.angle = Math.atan2(ship.vy, scrollSpeed * 0.9);
 
-      // trail
       trail.push({ x: ship.x, y: ship.y });
       if (trail.length > 26) trail.shift();
 
-      // walls = lose
       if (ship.y < 14 || ship.y > H - 14) return gameOver();
     }
 
     // move obstacles
     for (const o of obstacles) o.x -= move;
-    // recycle / spawn
     while (obstacles.length && obstacles[0].x < -80) obstacles.shift();
     let lastX = obstacles.length ? obstacles[obstacles.length - 1].x : W;
     while (lastX < W + cfg.spacing) {
@@ -261,15 +467,14 @@
     }
 
     if (started) {
-      distance += move;
-      // scoring + collision
       for (const o of obstacles) {
-        if (!o.passed && o.x + 22 < ship.x) {
+        if (!o.passed && o.x + BAR_W < ship.x) {
           o.passed = true;
-          score++;
+          gatesPassed++;
+          score = gatesPassed;
           burst(ship.x, ship.y, "#9be7a0");
           updateHud();
-          if (score > best) { best = score; localStorage.setItem("sw_best_" + difficulty, best); }
+          if (gatesPassed >= goal) return levelComplete();
         }
         if (hitObstacle(o)) return gameOver();
       }
@@ -306,11 +511,40 @@
   function gameOver() {
     burst(ship.x, ship.y, "#ff9a76");
     burst(ship.x, ship.y, "#ffd166");
+    crashed = true;
     state = STATE.OVER;
-    document.getElementById("finalScore").textContent = score;
-    document.getElementById("bestScore").textContent = best;
+    document.getElementById("overSub").textContent =
+      "You got " + gatesPassed + " / " + goal + " gates. Try again!";
     document.getElementById("overScreen").classList.remove("hidden");
     document.getElementById("hud").classList.add("hidden");
+  }
+
+  function levelComplete() {
+    burst(ship.x, ship.y, "#9be7a0");
+    burst(ship.x, ship.y, "#ffd166");
+    state = STATE.WIN;
+    // award stars: 3 if no crash this attempt-chain, else 2 (always >= 1)
+    const earned = crashed ? 2 : 3;
+    const lvlNum = level + 1;
+    const prev = progress.stars[lvlNum] || 0;
+    if (earned > prev) progress.stars[lvlNum] = earned;
+    // unlock next level
+    if (lvlNum + 1 > progress.unlocked && lvlNum < LEVELS.length) {
+      progress.unlocked = lvlNum + 1;
+    }
+    saveProgress();
+
+    document.getElementById("winStars").textContent =
+      "⭐".repeat(earned) + "☆".repeat(3 - earned);
+    document.getElementById("winSub").textContent =
+      crashed ? "Nice — you made it!" : "Perfect run! No crashes!";
+    document.getElementById("winScreen").classList.remove("hidden");
+    document.getElementById("hud").classList.add("hidden");
+
+    // Next button hidden on last level
+    const nextBtn = document.getElementById("nextBtn");
+    if (lvlNum >= LEVELS.length) nextBtn.classList.add("hidden");
+    else nextBtn.classList.remove("hidden");
   }
 
   // ---- Drawing ----
@@ -328,12 +562,16 @@
     }
     ctx.restore();
 
-    // obstacles (rounded gates with a glow)
-    for (const o of obstacles) {
-      const top = o.gapY - o.gapH / 2;
-      const bot = o.gapY + o.gapH / 2;
-      drawGate(o.x, 0, BAR_W, top);
-      drawGate(o.x, bot, BAR_W, H - bot);
+    // Only draw gameplay elements while playing / on win/over (obstacles freeze on overlay)
+    const showWorld = (state === STATE.PLAY || state === STATE.WIN || state === STATE.OVER);
+
+    if (showWorld) {
+      for (const o of obstacles) {
+        const top = o.gapY - o.gapH / 2;
+        const bot = o.gapY + o.gapH / 2;
+        drawGate(o.x, 0, BAR_W, top);
+        drawGate(o.x, bot, BAR_W, H - bot);
+      }
     }
 
     // trail
@@ -351,7 +589,7 @@
     }
 
     // ship
-    if (state !== STATE.MENU) drawShip();
+    if (showWorld) drawShip();
 
     // particles
     for (const p of particles) {
@@ -398,10 +636,8 @@
     ctx.save();
     ctx.translate(ship.x, ship.y);
     ctx.rotate(ship.angle || 0);
-    // glow
     ctx.shadowColor = "#8ad7ff";
     ctx.shadowBlur = 18;
-    // body
     ctx.fillStyle = "#ffd166";
     ctx.beginPath();
     ctx.moveTo(16, 0);
@@ -410,13 +646,11 @@
     ctx.lineTo(-12, 10);
     ctx.closePath();
     ctx.fill();
-    // window
     ctx.shadowBlur = 0;
     ctx.fillStyle = "#2a2a4a";
     ctx.beginPath();
     ctx.arc(2, 0, 4, 0, Math.PI * 2);
     ctx.fill();
-    // flame when holding (thrust)
     if (holding && started) {
       ctx.fillStyle = "#ff7b54";
       ctx.beginPath();
@@ -429,50 +663,87 @@
     ctx.restore();
   }
 
-  // ---- HUD / UI ----
+  // ---- HUD ----
   function updateHud() {
-    document.getElementById("hudScore").textContent = score;
-    document.getElementById("hudBest").textContent = Math.max(best, score);
+    document.getElementById("hudLevel").textContent = (level + 1);
+    document.getElementById("hudGate").textContent = gatesPassed + "/" + goal;
   }
 
-  // build speed picker
+  // ---- Speed picker (gentleness multiplier, shown on the level map) ----
   const picker = document.getElementById("speedPicker");
   function buildPicker() {
     picker.innerHTML = "";
-    for (const key of Object.keys(PRESETS)) {
-      const p = PRESETS[key];
+    for (const key of Object.keys(SPEEDS)) {
+      const p = SPEEDS[key];
       const b = document.createElement("button");
       b.className = "btn speed" + (key === difficulty ? " sel" : "");
       b.innerHTML = p.label + '<span class="lab">' + p.sub + "</span>";
       b.onclick = () => {
         difficulty = key;
-        localStorage.setItem("sw_diff", key);
+        progress.speed = key;
+        saveProgress();
         buildPicker();
       };
       picker.appendChild(b);
     }
   }
-  buildPicker();
 
-  function startGame() {
-    reset();
-    state = STATE.PLAY;
-    document.getElementById("startScreen").classList.add("hidden");
-    document.getElementById("overScreen").classList.add("hidden");
-    document.getElementById("hud").classList.remove("hidden");
+  // ---- Level map ----
+  const levelGrid = document.getElementById("levelGrid");
+  function buildMap() {
+    levelGrid.innerHTML = "";
+    for (let i = 0; i < LEVELS.length; i++) {
+      const lvlNum = i + 1;
+      const def = LEVELS[i];
+      const unlocked = lvlNum <= progress.unlocked;
+      const earnedStars = progress.stars[lvlNum] || 0;
+      const b = document.createElement("button");
+      b.className = "level-btn" + (!unlocked ? " locked" : (earnedStars > 0 ? " done" : ""));
+      if (!unlocked) {
+        b.innerHTML = '<span class="num">🔒</span><span class="stars">&nbsp;</span>';
+      } else {
+        const starStr = earnedStars > 0 ? "⭐".repeat(earnedStars) : "&nbsp;";
+        b.innerHTML =
+          '<span class="emoji">' + (def.emoji || "🚀") + '</span>' +
+          '<span class="num">' + lvlNum + '</span>' +
+          '<span class="stars">' + starStr + '</span>';
+        b.onclick = () => startLevel(i);
+      }
+      levelGrid.appendChild(b);
+    }
   }
 
-  function showMenu() {
-    state = STATE.MENU;
+  function showMap() {
+    state = STATE.MAP;
+    applyTint(["#1b1147", "#0b1026"]);
     buildPicker();
-    document.getElementById("startScreen").classList.remove("hidden");
+    buildMap();
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("winScreen").classList.add("hidden");
     document.getElementById("overScreen").classList.add("hidden");
     document.getElementById("hud").classList.add("hidden");
+    document.getElementById("mapScreen").classList.remove("hidden");
   }
 
-  document.getElementById("playBtn").onclick = startGame;
-  document.getElementById("againBtn").onclick = startGame;
-  document.getElementById("menuBtn").onclick = showMenu;
+  // ---- Button wiring ----
+  document.getElementById("playBtn").onclick = showMap;
+  document.getElementById("againBtn").onclick = () => startLevel(level, true); // retry, keep crashed flag
+  document.getElementById("overMapBtn").onclick = showMap;
+  document.getElementById("nextBtn").onclick = () => {
+    if (level + 1 < LEVELS.length) startLevel(level + 1);
+    else showMap();
+  };
+  document.getElementById("winMapBtn").onclick = showMap;
+  document.getElementById("replayBtn").onclick = () => startLevel(level);
+
+  // ---- Test hook (does not interfere with normal play) ----
+  window.__swtest = {
+    startLevel(i) { startLevel(i | 0); },
+    getState() {
+      return { state, level, score, gatesPassed, goal };
+    },
+    totalLevels: LEVELS.length,
+  };
 
   requestAnimationFrame(frame);
 })();
