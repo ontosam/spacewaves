@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Ball Master — Kid Edition</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>" />
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -128,7 +129,7 @@
   // ---- Game state ----
   const STATE = { MENU:0, PLAY:1, OVER:2 };
   let state = STATE.MENU;
-  let grid, numColors, current, next, shot, aim, score, best, popAnims, shotsSinceDrop;
+  let grid = [], numColors, current, next, shot, aim, score = 0, best = 0, popAnims = [], shotsSinceDrop;
   const SHOOTER_Y = () => H - R * 2.2;
   const SHOOTER_X = () => W / 2;
 
