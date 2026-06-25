@@ -28,6 +28,7 @@
     display: block;
     width: 100%; height: 100%;
     background: linear-gradient(160deg, var(--bg2), var(--bg1));
+    filter: saturate(1.35) brightness(1.05);
   }
 
   .overlay {
@@ -613,12 +614,21 @@
   function drawGate(x, y, w, h) {
     if (h <= 0) return;
     const r = 12;
-    ctx.fillStyle = "#6c5ce7";
-    ctx.strokeStyle = "#b3a7ff";
-    ctx.lineWidth = 3;
+    // neon body with a gradient + glowing rim (Space Waves vibe)
+    const g = ctx.createLinearGradient(x, 0, x + w, 0);
+    g.addColorStop(0, "#7b5bff");
+    g.addColorStop(1, "#9d7bff");
+    ctx.save();
+    ctx.shadowColor = "rgba(150,110,255,.9)";
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = g;
     roundRect(x, y - 0, w, h, r);
     ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#d3c4ff";
+    ctx.lineWidth = 3;
     ctx.stroke();
+    ctx.restore();
   }
 
   function roundRect(x, y, w, h, r) {
