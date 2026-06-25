@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Slice Master — Kid Edition</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍉</text></svg>" />
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #20143a;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    color: #fff; touch-action: none; user-select: none;
+  }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas {
+    display: block; width: 100%; height: 100%;
+    background: linear-gradient(180deg, #3a2566 0%, #271748 55%, #18102e 100%);
+    filter: saturate(1.4) contrast(1.05) brightness(1.04);
+  }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+    background: radial-gradient(120% 120% at 50% 30%, rgba(90,50,150,.45), rgba(20,12,40,.92));
+    backdrop-filter: blur(3px);
+  }
+  .hidden { display: none !important; }
+
+  h1 {
+    font-size: clamp(40px, 12vw, 86px); margin: 0;
+    color: #ffe27a; letter-spacing: 1px;
+    text-shadow: 0 4px 0 #c0397a, 0 0 22px rgba(255,170,90,.6);
+  }
+  h1 .sub { display:block; font-size: clamp(13px,3.6vw,20px); letter-spacing:6px; color:#ff9ec7; text-shadow:none; margin-top:6px; }
+  p.tip { font-size: clamp(15px, 4vw, 20px); color: #f0e7ff; max-width: 480px; line-height: 1.55; }
+
+  .speeds { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin: 16px 0 4px; }
+  .btn {
+    cursor: pointer; border: none; border-radius: 16px; margin-top: 8px;
+    padding: 16px 26px; font-size: clamp(17px, 4.6vw, 24px); font-weight: bold;
+    color: #2a1040; background: #ffe27a;
+    box-shadow: 0 6px 0 #c2a02f, 0 10px 22px rgba(0,0,0,.4);
+    transition: transform .06s ease, box-shadow .06s ease;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #c2a02f, 0 6px 14px rgba(0,0,0,.4); }
+  .btn.speed { background: #d6b3ff; box-shadow: 0 6px 0 #8a5cc4, 0 10px 22px rgba(0,0,0,.4); color:#2a1040; }
+  .btn.speed:active { box-shadow: 0 2px 0 #8a5cc4, 0 6px 14px rgba(0,0,0,.4); }
+  .btn.speed .lab { display:block; font-size: .6em; font-weight: normal; opacity: .85; margin-top: 2px; }
+  .btn.speed.sel { outline: 4px solid #fff; }
+
+  #hud {
+    position: fixed; top: 12px; left: 0; right: 0; z-index: 5;
+    display: flex; justify-content: center; align-items: center; gap: 26px;
+    font-size: clamp(20px, 6vw, 30px); font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0,0,0,.5); pointer-events: none;
+  }
+  #hud .lbl { font-size: .5em; color: #d6b3ff; display:block; text-align:center; }
+  #hudLives { font-size: clamp(20px, 6vw, 30px); letter-spacing: 1px; }
+  .score-big { font-size: clamp(44px, 13vw, 96px); margin: 6px 0; color:#ffe27a; text-shadow:0 4px 0 #c0397a; }
+  .best { color: #f0e7ff; font-size: clamp(15px, 4vw, 20px); }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game"></canvas></div>
+
+<div id="hud" class="hidden">
+  <div><span class="lbl">SCORE</span><span id="hudScore">0</span></div>
+  <div id="hudLives">❤️❤️❤️</div>
+  <div><span class="lbl">BEST</span><span id="hudBest">0</span></div>
+</div>
+
+<div id="startScreen" class="overlay">
+  <h1>Slice&nbsp;Master<span class="sub">KID EDITION</span></h1>
+  <p class="tip"><b>Swipe your finger</b> across the fruit to slice it! 🍉🍊<br>Slice lots in one swipe for a combo.<br>💣 don't slice the bomb! (none in Baby mode)</p>
+  <p class="tip" style="margin-top:2px">Pick how fast:</p>
+  <div class="speeds" id="speedPicker"></div>
+  <button class="btn" id="playBtn">▶ Play</button>
+</div>
+
+<div id="overScreen" class="overlay hidden">
+  <h1 style="font-size:clamp(30px,9vw,62px)">Juicy! 🎉</h1>
+  <div class="score-big" id="finalScore">0</div>
+  <div class="best">Best: <span id="bestScore">0</span></div>
+  <button class="btn" id="againBtn">↻ Play Again</button>
+  <button class="btn speed" id="menuBtn">⚙ Change Speed</button>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  // ---- Presets (gentle). spawn=sec between tosses, vyMul=launch power, bomb=bomb chance ----
+  const PRESETS = {
+    baby:   { label: "Baby",   sub: "no bombs",   spawn: 1.25, vyMul: 0.92, bomb: 0.0,  multi: 1, ramp: 0.0 },
+    easy:   { label: "Easy",   sub: "for kids",   spawn: 1.0,  vyMul: 0.98, bomb: 0.07, multi: 2, ramp: 0.08 },
+    normal: { label: "Normal", sub: "a challenge",spawn: 0.8,  vyMul: 1.04, bomb: 0.12, multi: 3, ramp: 0.16 },
+  };
+  let difficulty = localStorage.getItem("sl_diff") || "easy";
+
+  // ---- Canvas ----
+  let W=0,H=0,DPR=1;
+  function resize(){
+    DPR=Math.min(window.devicePixelRatio||1,2);
+    W=window.innerWidth; H=window.innerHeight;
+    canvas.width=Math.floor(W*DPR); canvas.height=Math.floor(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener("resize", resize); resize();
+
+  const FRUITS = [
+    {c:"#ff5a5a",h:"#ff9a9a",in:"#ffd0d0"}, // watermelon-ish red
+    {c:"#ffa733",h:"#ffd08a",in:"#ffe9c4"}, // orange
+    {c:"#ffd23f",h:"#ffe98a",in:"#fff4c4"}, // lemon
+    {c:"#5ad65a",h:"#9bf09b",in:"#d3ffd3"}, // lime
+    {c:"#4dabf7",h:"#a5d8ff",in:"#d8eeff"}, // blueberry
+    {c:"#b56bff",h:"#d6b0ff",in:"#eaddff"}, // grape
+    {c:"#ff7ac0",h:"#ffb3da",in:"#ffd9ec"}, // pink
+  ];
+  const G = 1050; // gravity px/s^2
+
+  // ---- State (arrays init up front) ----
+  const STATE = { MENU:0, PLAY:1, OVER:2 };
+  let state = STATE.MENU;
+  let objs = [], halves = [], juice = [], trail = [];
+  let cfg = PRESETS[difficulty];
+  let score = 0, lives = 3, best = +(localStorage.getItem("sl_best_"+difficulty)||0);
+  let spawnTimer = 0, elapsed = 0, shake = 0, sliceCount = 0, sliceTimer = 0;
+
+  function reset(){
+    cfg = PRESETS[difficulty];
+    objs = []; halves = []; juice = []; trail = [];
+    score = 0; lives = 3; spawnTimer = 0.6; elapsed = 0; shake = 0; sliceCount = 0; sliceTimer = 0;
+    best = +(localStorage.getItem("sl_best_"+difficulty)||0);
+    updateHud();
+  }
+
+  // ---- Input: swipe = drag; blade follows finger ----
+  let down = false, lastX = 0, lastY = 0;
+  function pt(e){ return { x: e.clientX, y: e.clientY }; }
+  canvas.addEventListener("pointerdown", (e)=>{ e.preventDefault(); down=true; const p=pt(e); lastX=p.x; lastY=p.y; trail=[{x:p.x,y:p.y,life:0.25}]; });
+  canvas.addEventListener("pointermove", (e)=>{
+    if (!down) return;
+    const p = pt(e);
+    trail.push({x:p.x,y:p.y,life:0.25}); if (trail.length>14) trail.shift();
+    if (state===STATE.PLAY) sliceSegment(lastX,lastY,p.x,p.y);
+    lastX=p.x; lastY=p.y;
+  });
+  window.addEventListener("pointerup", ()=>{ down=false; });
+
+  // ---- Loop ----
+  let last=0;
+  function frame(t){
+    const dt=Math.min((t-last)/1000,0.033)||0; last=t;
+    if (state===STATE.PLAY) update(dt);
+    // trail fades even when idle
+    for (const p of trail) p.life-=dt; trail=trail.filter(p=>p.life>0);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  function update(dt){
+    elapsed += dt;
+    const rampMul = 1 + cfg.ramp*Math.min(elapsed/60,1);
+    if (shake>0) shake-=dt;
+    if (sliceTimer>0){ sliceTimer-=dt; if (sliceTimer<=0) sliceCount=0; }
+
+    spawnTimer -= dt;
+    if (spawnTimer<=0){ spawnTimer = cfg.spawn/rampMul*(0.7+Math.random()*0.6); toss(rampMul); }
+
+    for (const o of objs){ o.vy += G*dt; o.x += o.vx*dt; o.y += o.vy*dt; o.rot += o.spin*dt; }
+    objs = objs.filter(o => o.y < H + o.r*2.5); // missed ones just fall away (no penalty)
+
+    for (const hf of halves){ hf.vy += G*dt; hf.x += hf.vx*dt; hf.y += hf.vy*dt; hf.rot += hf.spin*dt; hf.life-=dt; }
+    halves = halves.filter(h=>h.life>0 && h.y < H + 80);
+    for (const j of juice){ j.vy += G*0.6*dt; j.x += j.vx*dt; j.y += j.vy*dt; j.life-=dt; }
+    juice = juice.filter(j=>j.life>0);
+
+    if (best<score){ best=score; localStorage.setItem("sl_best_"+difficulty, best); }
+    updateHud();
+  }
+
+  function toss(rampMul){
+    const n = 1 + Math.floor(Math.random()*cfg.multi);
+    for (let i=0;i<n;i++){
+      let kind = "fruit";
+      if (Math.random() < cfg.bomb) kind = "bomb";
+      const r = (kind==="bomb"?28:26+Math.random()*12)*(W<480?0.85:1);
+      const x = W*0.18 + Math.random()*W*0.64;
+      const launch = Math.sqrt(2*G*(H*0.52)) * cfg.vyMul * (0.92+Math.random()*0.16);
+      objs.push({
+        kind, x, y: H + r, r,
+        vx: (W/2 - x)*0.5/ (H/600) * 0.012 + (Math.random()-0.5)*60,
+        vy: -launch,
+        colIdx: Math.floor(Math.random()*FRUITS.length),
+        rot: Math.random()*6.28, spin: (Math.random()-0.5)*4, sliced:false,
+      });
+    }
+  }
+
+  // distance from point P to segment AB
+  function segDist(px,py,ax,ay,bx,by){
+    const dx=bx-ax, dy=by-ay; const len2=dx*dx+dy*dy||1;
+    let t=((px-ax)*dx+(py-ay)*dy)/len2; t=Math.max(0,Math.min(1,t));
+    const cx=ax+t*dx, cy=ay+t*dy; return Math.hypot(px-cx,py-cy);
+  }
+
+  function sliceSegment(ax,ay,bx,by){
+    for (const o of objs){
+      if (o.sliced) continue;
+      if (segDist(o.x,o.y,ax,ay,bx,by) <= o.r){
+        sliceObject(o, Math.atan2(by-ay, bx-ax));
+      }
+    }
+  }
+
+  function sliceObject(o, ang){
+    o.sliced = true;
+    const idx = objs.indexOf(o); if (idx>=0) objs.splice(idx,1);
+    if (o.kind==="bomb"){
+      loseLife(); shake=0.45; sliceCount=0;
+      for (let i=0;i<20;i++){ const a=Math.random()*6.28,sp=Math.random()*220+60; juice.push({x:o.x,y:o.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0.5,color:"#444",r:4}); }
+      addFloat(o.x,o.y,"💣");
+      return;
+    }
+    // combo scoring
+    sliceCount += 1; sliceTimer = 0.45;
+    const bonus = sliceCount>=2 ? sliceCount : 1;
+    score += bonus;
+    if (sliceCount>=2) addFloat(o.x,o.y-o.r-8, "COMBO x"+sliceCount);
+    else addFloat(o.x,o.y-o.r-8, "+1");
+    // two halves fly apart perpendicular to the cut
+    const nx=Math.cos(ang+Math.PI/2), ny=Math.sin(ang+Math.PI/2);
+    for (const s of [1,-1]){
+      halves.push({ x:o.x, y:o.y, r:o.r, colIdx:o.colIdx, cut:ang,
+        vx:o.vx*0.3 + nx*s*120, vy:o.vy*0.3 + ny*s*120 - 40,
+        rot:o.rot, spin:(Math.random()-0.5)*6 + s*3, life:1.1, side:s });
+    }
+    // juice droplets
+    const f=FRUITS[o.colIdx];
+    for (let i=0;i<12;i++){ const a=Math.random()*6.28,sp=Math.random()*200+40; juice.push({x:o.x,y:o.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-60,life:0.5+Math.random()*0.3,color:f.in,r:3+Math.random()*3}); }
+    updateHud();
+  }
+
+  function loseLife(){ lives-=1; updateHud(); if (lives<=0) gameOver(); }
+  function addFloat(x,y,text){ juice.push({ kind:"text", x, y, text, life:0.85 }); }
+
+  function gameOver(){
+    state=STATE.OVER;
+    document.getElementById("finalScore").textContent=score;
+    document.getElementById("bestScore").textContent=best;
+    document.getElementById("overScreen").classList.remove("hidden");
+    document.getElementById("hud").classList.add("hidden");
+  }
+
+  // ---- Draw ----
+  function draw(){
+    ctx.save();
+    if (shake>0){ const m=shake*16; ctx.translate((Math.random()-0.5)*m,(Math.random()-0.5)*m); }
+    ctx.clearRect(-30,-30,W+60,H+60);
+
+    for (const o of objs) drawFruit(o.x,o.y,o.r,o.colIdx,o.rot,o.kind);
+    for (const hf of halves) drawHalf(hf);
+
+    // juice droplets + floating text
+    for (const j of juice){
+      if (j.kind==="text"){ ctx.globalAlpha=Math.max(0,j.life/0.85); ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,.3)"; ctx.lineWidth=3;
+        ctx.font="bold "+Math.round(Math.min(W,H)*0.05)+"px Trebuchet MS"; ctx.textAlign="center"; ctx.strokeText(j.text,j.x,j.y); ctx.fillText(j.text,j.x,j.y); }
+      else { ctx.globalAlpha=Math.max(0,j.life*2); ctx.fillStyle=j.color; ctx.beginPath(); ctx.arc(j.x,j.y,j.r,0,6.28); ctx.fill(); }
+    }
+    ctx.globalAlpha=1;
+
+    // blade trail
+    if (trail.length>1){
+      ctx.lineCap="round"; ctx.lineJoin="round";
+      for (let i=1;i<trail.length;i++){
+        const a=trail[i].life/0.25;
+        ctx.strokeStyle="rgba(255,255,255,"+(a*0.9)+")";
+        ctx.lineWidth=2+a*10;
+        ctx.beginPath(); ctx.moveTo(trail[i-1].x,trail[i-1].y); ctx.lineTo(trail[i].x,trail[i].y); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawFruit(x,y,r,colIdx,rot,kind){
+    ctx.save(); ctx.translate(x,y); ctx.rotate(rot);
+    if (kind==="bomb"){
+      ctx.fillStyle="#333"; ctx.beginPath(); ctx.arc(0,0,r,0,6.28); ctx.fill();
+      ctx.strokeStyle="#777"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,0,r*0.66,0,6.28); ctx.stroke();
+      ctx.strokeStyle="#caa"; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,-r); ctx.lineTo(r*0.3,-r*1.4); ctx.stroke();
+      ctx.fillStyle="#ffb347"; ctx.beginPath(); ctx.arc(r*0.3,-r*1.4,4,0,6.28); ctx.fill();
+      ctx.restore(); return;
+    }
+    const f=FRUITS[colIdx];
+    const g=ctx.createRadialGradient(-r*0.3,-r*0.35,r*0.1,0,0,r);
+    g.addColorStop(0,f.h); g.addColorStop(1,f.c);
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,r,0,6.28); ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,.4)"; ctx.beginPath(); ctx.ellipse(-r*0.32,-r*0.36,r*0.2,r*0.13,-0.5,0,6.28); ctx.fill();
+    // little leaf on top
+    ctx.fillStyle="#4caf50"; ctx.beginPath(); ctx.ellipse(0,-r,r*0.28,r*0.16,0.6,0,6.28); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawHalf(hf){
+    ctx.save(); ctx.globalAlpha=Math.max(0,Math.min(1,hf.life));
+    ctx.translate(hf.x,hf.y); ctx.rotate(hf.rot);
+    const f=FRUITS[hf.colIdx]; const r=hf.r;
+    // rotate so the flat cut faces along hf.cut; draw a half disc on one side
+    ctx.rotate(hf.cut);
+    ctx.fillStyle=f.c;
+    ctx.beginPath();
+    if (hf.side>0) ctx.arc(0,0,r,Math.PI,0); else ctx.arc(0,0,r,0,Math.PI);
+    ctx.closePath(); ctx.fill();
+    // juicy inner face
+    ctx.fillStyle=f.in;
+    ctx.beginPath();
+    if (hf.side>0) ctx.ellipse(0,0,r*0.92,r*0.22,0,Math.PI,0); else ctx.ellipse(0,0,r*0.92,r*0.22,0,0,Math.PI);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---- HUD / UI ----
+  function updateHud(){
+    document.getElementById("hudScore").textContent=score;
+    document.getElementById("hudBest").textContent=Math.max(best,score);
+    const el=document.getElementById("hudLives");
+    el.style.visibility = cfg.bomb>0 ? "visible" : "hidden";
+    el.textContent = "❤️".repeat(Math.max(0,lives)) + "🖤".repeat(Math.max(0,3-lives));
+  }
+
+  const picker=document.getElementById("speedPicker");
+  function buildPicker(){
+    picker.innerHTML="";
+    for (const key of Object.keys(PRESETS)){
+      const p=PRESETS[key];
+      const b=document.createElement("button");
+      b.className="btn speed"+(key===difficulty?" sel":"");
+      b.innerHTML=p.label+'<span class="lab">'+p.sub+"</span>";
+      b.onclick=()=>{ difficulty=key; localStorage.setItem("sl_diff",key); buildPicker(); };
+      picker.appendChild(b);
+    }
+  }
+  buildPicker();
+
+  function startGame(){
+    reset(); state=STATE.PLAY;
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("hud").classList.remove("hidden");
+  }
+  function showMenu(){
+    state=STATE.MENU; buildPicker();
+    document.getElementById("startScreen").classList.remove("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("hud").classList.add("hidden");
+  }
+  document.getElementById("playBtn").onclick=startGame;
+  document.getElementById("againBtn").onclick=startGame;
+  document.getElementById("menuBtn").onclick=showMenu;
+
+  // ---- test hook ----
+  window.__sltest = {
+    start(){ startGame(); },
+    swipe(x1,y1,x2,y2){ sliceSegment(x1,y1,x2,y2); },
+    getObjects(){ return objs.map(o=>({x:o.x,y:o.y,r:o.r,kind:o.kind})); },
+    getState(){ return { state, score, lives, objs: objs.length, halves: halves.length }; },
+  };
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
