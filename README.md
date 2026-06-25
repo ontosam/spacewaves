@@ -4,6 +4,7 @@ Two gentle, kid-friendly browser games, tuned to be easy for a young child:
 
 - **[Space Waves](spacewaves/)** — hold to fly up, let go to dive, glide through the gaps.
 - **[Ball Master](ballmaster/)** — aim and shoot, match 3+ colors to pop the balls.
+- **[Star Blaster](starblaster/)** — slide to move, auto-fire, blast the space rocks before they get past.
 
 Both are single static HTML files with no dependencies, so they run great on an
 iPad in Safari.
@@ -15,6 +16,7 @@ Once Pages is turned on (see below), the games live at:
 - **Home / game picker:** `https://ontosam.github.io/spacewaves/`
 - Space Waves: `https://ontosam.github.io/spacewaves/spacewaves/`
 - Ball Master: `https://ontosam.github.io/spacewaves/ballmaster/`
+- Star Blaster: `https://ontosam.github.io/spacewaves/starblaster/`
 
 On the iPad, open the home link in Safari, tap the **Share** button, and choose
 **Add to Home Screen** — it then opens full-screen like a real app.
