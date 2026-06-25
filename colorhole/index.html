@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Color Hole — Kid Edition</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕳️</text></svg>" />
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #2f9e44;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    color: #fff; touch-action: none; user-select: none;
+  }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; width: 100%; height: 100%; background: #58c46b; }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+    background: radial-gradient(120% 120% at 50% 30%, rgba(40,120,60,.45), rgba(15,50,25,.92));
+    backdrop-filter: blur(3px);
+  }
+  .hidden { display: none !important; }
+
+  h1 {
+    font-size: clamp(40px, 12vw, 86px); margin: 0;
+    color: #ffe27a; letter-spacing: 1px;
+    text-shadow: 0 4px 0 #1f7a34, 0 0 22px rgba(0,0,0,.4);
+  }
+  h1 .sub { display:block; font-size: clamp(13px,3.6vw,20px); letter-spacing:6px; color:#fff; text-shadow:none; margin-top:6px; }
+  p.tip { font-size: clamp(15px, 4vw, 20px); color: #eaffea; max-width: 480px; line-height: 1.55; }
+
+  .speeds { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin: 16px 0 4px; }
+  .btn {
+    cursor: pointer; border: none; border-radius: 16px; margin-top: 8px;
+    padding: 16px 26px; font-size: clamp(17px, 4.6vw, 24px); font-weight: bold;
+    color: #1d5026; background: #ffe27a;
+    box-shadow: 0 6px 0 #c2a02f, 0 10px 22px rgba(0,0,0,.35);
+    transition: transform .06s ease, box-shadow .06s ease;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #c2a02f, 0 6px 14px rgba(0,0,0,.35); }
+  .btn.speed { background: #aee9bd; box-shadow: 0 6px 0 #4f9d6a, 0 10px 22px rgba(0,0,0,.35); color:#1d5026; }
+  .btn.speed:active { box-shadow: 0 2px 0 #4f9d6a, 0 6px 14px rgba(0,0,0,.35); }
+  .btn.speed .lab { display:block; font-size: .6em; font-weight: normal; opacity: .85; margin-top: 2px; }
+  .btn.speed.sel { outline: 4px solid #fff; }
+
+  #hud {
+    position: fixed; top: 12px; left: 0; right: 0; z-index: 5;
+    display: flex; justify-content: center; align-items: center; gap: 26px;
+    font-size: clamp(20px, 6vw, 30px); font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0,0,0,.45); pointer-events: none;
+  }
+  #hud .lbl { font-size: .5em; color: #d8ffd8; display:block; text-align:center; }
+  .score-big { font-size: clamp(44px, 13vw, 96px); margin: 6px 0; color:#ffe27a; text-shadow:0 4px 0 #1f7a34; }
+  .best { color: #eaffea; font-size: clamp(15px, 4vw, 20px); }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game"></canvas></div>
+
+<div id="hud" class="hidden">
+  <div><span class="lbl">SCORE</span><span id="hudScore">0</span></div>
+  <div><span class="lbl">TIME</span><span id="hudTime">0</span></div>
+  <div><span class="lbl">BEST</span><span id="hudBest">0</span></div>
+</div>
+
+<div id="startScreen" class="overlay">
+  <h1>Color&nbsp;Hole<span class="sub">KID EDITION</span></h1>
+  <p class="tip"><b>Drag your finger</b> to move the hole. 🕳️<br>Swallow everything that fits inside!<br>The more you eat, the <b>bigger</b> you grow. ✨</p>
+  <p class="tip" style="margin-top:2px">Pick how long:</p>
+  <div class="speeds" id="speedPicker"></div>
+  <button class="btn" id="playBtn">▶ Play</button>
+</div>
+
+<div id="overScreen" class="overlay hidden">
+  <h1 style="font-size:clamp(30px,9vw,62px)">Time's up! 🎉</h1>
+  <div class="score-big" id="finalScore">0</div>
+  <div class="best">Best: <span id="bestScore">0</span></div>
+  <button class="btn" id="againBtn">↻ Play Again</button>
+  <button class="btn speed" id="menuBtn">⚙ Change Time</button>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  // ---- Presets: gentle. time=seconds, startR=starting hole radius, grow=growth per eat ----
+  const PRESETS = {
+    baby:   { label: "Baby",   sub: "90 sec, big",  time: 90, startR: 48, grow: 0.07 },
+    easy:   { label: "Easy",   sub: "60 sec",       time: 60, startR: 40, grow: 0.06 },
+    normal: { label: "Normal", sub: "45 sec",       time: 45, startR: 33, grow: 0.05 },
+  };
+  let difficulty = localStorage.getItem("ch_diff") || "easy";
+
+  // ---- Canvas ----
+  let W=0,H=0,DPR=1;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio||1,2);
+    W=window.innerWidth; H=window.innerHeight;
+    canvas.width=Math.floor(W*DPR); canvas.height=Math.floor(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener("resize", resize); resize();
+
+  const COLORS = ["#ff6b6b","#ffa94d","#ffd43b","#4dabf7","#b197fc","#f783ac","#ff8787","#63e6be"];
+
+  // ---- State (init arrays before first frame so draw() never throws) ----
+  const STATE = { MENU:0, PLAY:1, OVER:2 };
+  let state = STATE.MENU;
+  let objects = [], floaters = [];
+  let hole = { x: 0, y: 0, r: 40, pulse: 0 };
+  let targetX = 0, targetY = 0;
+  let cfg = PRESETS[difficulty];
+  let score = 0, timeLeft = 60, best = +(localStorage.getItem("ch_best_"+difficulty)||0);
+  const TARGET_COUNT = 26;
+
+  function reset(){
+    cfg = PRESETS[difficulty];
+    hole = { x: W/2, y: H*0.55, r: cfg.startR, pulse: 0 };
+    targetX = hole.x; targetY = hole.y;
+    objects = []; floaters = [];
+    score = 0; timeLeft = cfg.time;
+    best = +(localStorage.getItem("ch_best_"+difficulty)||0);
+    for (let i=0;i<TARGET_COUNT;i++) objects.push(makeObject(true));
+    updateHud();
+  }
+
+  // size buckets relative to a reference; small always eatable early, large need growth
+  function makeObject(initial){
+    const bucket = Math.random();
+    let r;
+    if (bucket < 0.55) r = 14 + Math.random()*8;        // small
+    else if (bucket < 0.85) r = 24 + Math.random()*10;  // medium
+    else r = 38 + Math.random()*16;                      // large
+    r *= (W<480?0.85:1);
+    let x, y, tries=0;
+    do {
+      x = r + Math.random()*(W - r*2);
+      y = r + 80 + Math.random()*(H - r*2 - 100);
+      tries++;
+    } while (tries<8 && Math.hypot(x-hole.x, y-hole.y) < hole.r + r + 40);
+    return {
+      x, y, r, baseR: r, colIdx: Math.floor(Math.random()*COLORS.length),
+      shape: Math.random()<0.5 ? "box" : "ball",
+      rot: Math.random()*6.28, scale: 1, falling: false,
+      pts: r<22 ? 1 : (r<34 ? 3 : 8),
+    };
+  }
+
+  // ---- Input: hole follows finger ----
+  function setTarget(x,y){ targetX = x; targetY = y; }
+  canvas.addEventListener("pointerdown", (e)=>{ e.preventDefault(); setTarget(e.clientX, e.clientY); });
+  canvas.addEventListener("pointermove", (e)=>{ if (state===STATE.PLAY) setTarget(e.clientX, e.clientY); });
+
+  // ---- Loop ----
+  let last=0;
+  function frame(t){
+    const dt = Math.min((t-last)/1000,0.033)||0; last=t;
+    if (state===STATE.PLAY) update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  function update(dt){
+    timeLeft -= dt;
+    if (timeLeft <= 0){ timeLeft = 0; updateHud(); return gameOver(); }
+
+    // hole easing toward finger
+    hole.x += (targetX - hole.x) * Math.min(1, dt*9);
+    hole.y += (targetY - hole.y) * Math.min(1, dt*9);
+    hole.x = Math.max(hole.r*0.3, Math.min(W-hole.r*0.3, hole.x));
+    hole.y = Math.max(hole.r*0.3, Math.min(H-hole.r*0.3, hole.y));
+    if (hole.pulse>0) hole.pulse -= dt;
+
+    for (const o of objects){
+      if (o.eaten) continue;
+      const dx = hole.x - o.x, dy = hole.y - o.y, d = Math.hypot(dx,dy) || 0.001;
+      const eatable = hole.r >= o.r * 0.95;
+      if (o.falling){
+        // suck toward center and shrink
+        o.x += dx * Math.min(1, dt*10);
+        o.y += dy * Math.min(1, dt*10);
+        o.scale -= dt*2.6; o.rot += dt*8;
+        if (o.scale <= 0.12){
+          o.eaten = true;
+          score += o.pts;
+          hole.r = Math.min(160, hole.r + o.baseR * cfg.grow);
+          hole.pulse = 0.22;
+          addFloat(hole.x, hole.y - hole.r - 6, "+"+o.pts);
+        }
+      } else if (eatable && d < hole.r + o.r*0.25){
+        o.falling = true;                       // tipped over the edge
+      } else if (eatable && d < hole.r + o.r + 46){
+        // gentle gravity pull toward the rim
+        const pull = (1 - (d/(hole.r+o.r+46))) * 240;
+        o.x += (dx/d) * pull * dt;
+        o.y += (dy/d) * pull * dt;
+      }
+    }
+    // recycle eaten objects to keep the field lively
+    let alive = 0;
+    for (const o of objects) if (!o.eaten) alive++;
+    objects = objects.filter(o=>!o.eaten);
+    while (objects.length < TARGET_COUNT) objects.push(makeObject(false));
+
+    for (const f of floaters){ f.y -= 42*dt; f.life -= dt; }
+    floaters = floaters.filter(f=>f.life>0);
+
+    if (best < score){ best = score; localStorage.setItem("ch_best_"+difficulty, best); }
+    updateHud();
+  }
+
+  function addFloat(x,y,text){ floaters.push({x,y,text,life:0.8}); }
+
+  function gameOver(){
+    state = STATE.OVER;
+    document.getElementById("finalScore").textContent = score;
+    document.getElementById("bestScore").textContent = best;
+    document.getElementById("overScreen").classList.remove("hidden");
+    document.getElementById("hud").classList.add("hidden");
+  }
+
+  // ---- Draw ----
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    // ground checker pattern for depth
+    drawGround();
+
+    // objects (draw those NOT falling first, then falling clipped so they vanish into the hole)
+    for (const o of objects) if (!o.falling) drawObject(o);
+
+    // the hole
+    drawHole();
+
+    // falling objects drawn after the hole but clipped to the hole so they appear to sink in
+    ctx.save();
+    ctx.beginPath(); ctx.arc(hole.x, hole.y, hole.r*1.02, 0, 6.28); ctx.clip();
+    for (const o of objects) if (o.falling) drawObject(o);
+    ctx.restore();
+
+    if (state!==STATE.MENU){
+      for (const f of floaters){ ctx.globalAlpha=Math.max(0,f.life/0.8); ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,.3)"; ctx.lineWidth=3;
+        ctx.font="bold "+Math.round(Math.min(W,H)*0.05)+"px Trebuchet MS"; ctx.textAlign="center";
+        ctx.strokeText(f.text,f.x,f.y); ctx.fillText(f.text,f.x,f.y); }
+      ctx.globalAlpha=1;
+    }
+  }
+
+  function drawGround(){
+    const t=44;
+    for (let y=0;y<H;y+=t){
+      for (let x=0;x<W;x+=t){
+        ctx.fillStyle = ((x/t+y/t)&1) ? "#5ec870" : "#56bf68";
+        ctx.fillRect(x,y,t,t);
+      }
+    }
+  }
+
+  function drawHole(){
+    ctx.save();
+    const r = hole.r * (1 + (hole.pulse>0 ? hole.pulse*0.4 : 0));
+    // soft shadow rim
+    ctx.beginPath(); ctx.arc(hole.x, hole.y, r+6, 0, 6.28);
+    ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fill();
+    // hole body
+    const g = ctx.createRadialGradient(hole.x, hole.y, r*0.2, hole.x, hole.y, r);
+    g.addColorStop(0, "#120a26"); g.addColorStop(0.7, "#241247"); g.addColorStop(1, "#3a1e6e");
+    ctx.beginPath(); ctx.arc(hole.x, hole.y, r, 0, 6.28); ctx.fillStyle=g; ctx.fill();
+    // purple rim glow
+    ctx.lineWidth=4; ctx.strokeStyle="rgba(150,110,255,.7)"; ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawObject(o){
+    ctx.save();
+    ctx.translate(o.x, o.y); ctx.rotate(o.rot); ctx.scale(o.scale, o.scale);
+    const col = COLORS[o.colIdx];
+    // little drop shadow
+    ctx.fillStyle="rgba(0,0,0,.12)";
+    if (o.shape==="ball"){ ctx.beginPath(); ctx.arc(2,3,o.r,0,6.28); ctx.fill(); }
+    else roundRectFill(2-o.r,3-o.r,o.r*2,o.r*2,o.r*0.3,"rgba(0,0,0,.12)");
+    // body with shading
+    const g=ctx.createLinearGradient(-o.r,-o.r,o.r,o.r);
+    g.addColorStop(0, lighten(col)); g.addColorStop(1, col);
+    ctx.fillStyle=g;
+    if (o.shape==="ball"){ ctx.beginPath(); ctx.arc(0,0,o.r,0,6.28); ctx.fill();
+      ctx.fillStyle="rgba(255,255,255,.45)"; ctx.beginPath(); ctx.ellipse(-o.r*0.3,-o.r*0.35,o.r*0.22,o.r*0.14,-0.5,0,6.28); ctx.fill();
+    } else { roundRectFill(-o.r,-o.r,o.r*2,o.r*2,o.r*0.3,null);
+      ctx.fillStyle="rgba(255,255,255,.35)"; roundRectFill(-o.r*0.7,-o.r*0.7,o.r*0.8,o.r*0.5,o.r*0.18,null);
+    }
+    ctx.restore();
+  }
+
+  function roundRectFill(x,y,w,h,r,color){
+    if (color) ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); ctx.fill();
+  }
+  function lighten(hex){
+    const n=parseInt(hex.slice(1),16); let r=(n>>16)+40,g=((n>>8)&255)+40,b=(n&255)+40;
+    r=Math.min(255,r); g=Math.min(255,g); b=Math.min(255,b);
+    return "rgb("+r+","+g+","+b+")";
+  }
+
+  // ---- HUD / UI ----
+  function updateHud(){
+    document.getElementById("hudScore").textContent = score;
+    document.getElementById("hudTime").textContent = Math.ceil(timeLeft);
+    document.getElementById("hudBest").textContent = Math.max(best, score);
+  }
+
+  const picker = document.getElementById("speedPicker");
+  function buildPicker(){
+    picker.innerHTML="";
+    for (const key of Object.keys(PRESETS)){
+      const p=PRESETS[key];
+      const b=document.createElement("button");
+      b.className="btn speed"+(key===difficulty?" sel":"");
+      b.innerHTML=p.label+'<span class="lab">'+p.sub+"</span>";
+      b.onclick=()=>{ difficulty=key; localStorage.setItem("ch_diff",key); buildPicker(); };
+      picker.appendChild(b);
+    }
+  }
+  buildPicker();
+
+  function startGame(){
+    reset(); state=STATE.PLAY;
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("hud").classList.remove("hidden");
+  }
+  function showMenu(){
+    state=STATE.MENU; buildPicker();
+    document.getElementById("startScreen").classList.remove("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("hud").classList.add("hidden");
+  }
+  document.getElementById("playBtn").onclick=startGame;
+  document.getElementById("againBtn").onclick=startGame;
+  document.getElementById("menuBtn").onclick=showMenu;
+
+  // ---- test hook ----
+  window.__chtest = {
+    start(){ startGame(); },
+    setTarget(x,y){ setTarget(x,y); },
+    setTimeLeft(t){ timeLeft = t; },
+    getObjects(){ return objects.filter(o=>!o.eaten).map(o=>({x:o.x,y:o.y,r:o.r,eatable:hole.r>=o.r*0.95})); },
+    getState(){ return { state, score, holeR: Math.round(hole.r), objects: objects.length, timeLeft: Math.round(timeLeft) }; },
+  };
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
