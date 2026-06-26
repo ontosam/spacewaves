@@ -51,12 +51,36 @@
     box-shadow: 0 5px 0 #b9923a;
   }
   footer { margin-top: 34px; color: #7e8bbf; font-size: 13px; text-align: center; }
+
+  /* ---- Rewards ---- */
+  .rewards-bar { display:flex; gap:12px; align-items:center; justify-content:center; margin:-14px 0 22px; flex-wrap:wrap; }
+  .star-badge { background:#ffd166; color:#06081a; font-weight:bold; border-radius:14px; padding:9px 16px; font-size:clamp(15px,4vw,20px); box-shadow:0 4px 0 #b9923a; }
+  .stk-btn { cursor:pointer; border:none; background:#b3a7ff; color:#1a1040; font-weight:bold; border-radius:14px; padding:11px 18px; font-size:clamp(15px,4vw,20px); box-shadow:0 4px 0 #6c5ce7; transition:transform .06s ease, box-shadow .06s ease; }
+  .stk-btn:active { transform:translateY(3px); box-shadow:0 1px 0 #6c5ce7; }
+  .shelf { position:fixed; inset:0; z-index:50; background:linear-gradient(160deg,#1b1147,#06081a); overflow-y:auto; -webkit-overflow-scrolling:touch; padding:18px 16px 48px; display:none; }
+  .shelf.open { display:block; }
+  .shelf .close { position:sticky; top:0; float:right; cursor:pointer; border:none; background:#ff9ec7; color:#2a1040; font-weight:bold; border-radius:12px; padding:10px 16px; font-size:18px; box-shadow:0 4px 0 #c25c8c; }
+  .shelf h2 { text-align:center; margin:4px 0 10px; font-size:clamp(26px,7vw,42px); }
+  .rw-top { text-align:center; }
+  .rw-stars { font-size:clamp(42px,13vw,72px); font-weight:bold; color:#ffd166; text-shadow:0 0 18px rgba(255,210,80,.5); }
+  .rw-meta { text-align:center; color:#9fb6ff; font-size:clamp(14px,4vw,18px); }
+  .rw-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; max-width:780px; margin:14px auto 0; }
+  .rw-stk { border-radius:18px; padding:14px 10px; text-align:center; background:rgba(255,255,255,.07); }
+  .rw-stk.got { background:linear-gradient(160deg,#3a2f8f,#241247); box-shadow:0 4px 0 rgba(0,0,0,.3); }
+  .rw-stk.locked { opacity:.5; }
+  .rw-e { font-size:42px; line-height:1; }
+  .rw-n { font-weight:bold; margin-top:5px; font-size:clamp(14px,3.6vw,17px); }
+  .rw-d { color:#c7d2ff; font-size:clamp(11px,3vw,13px); margin-top:3px; }
 </style>
 </head>
 <body>
 <div class="page">
   <h1>Ezra's Games 🚀</h1>
   <div class="sub">PICK A GAME</div>
+  <div class="rewards-bar">
+    <span class="star-badge" id="starBadge">0 ⭐</span>
+    <button class="stk-btn" id="stickerBtn">🏆 My Stickers</button>
+  </div>
   <div class="cards">
     <a class="card sw" href="spacewaves/">
       <div class="emoji">🚀</div>
@@ -103,5 +127,27 @@
   </div>
   <footer>Tip: tap the ⤴ Share button in Safari and "Add to Home Screen" for full-screen play.</footer>
 </div>
+
+<div class="shelf" id="shelf">
+  <button class="close" id="shelfClose">✕ Close</button>
+  <h2>My Stickers 🏆</h2>
+  <div id="shelfBody"></div>
+</div>
+
+<script src="rewards.js" data-hub="1"></script>
+<script>
+  (function () {
+    function refresh() { if (!window.Rewards) return; document.getElementById("starBadge").textContent = Rewards.summary().stars + " ⭐"; }
+    refresh();
+    var shelf = document.getElementById("shelf");
+    document.getElementById("stickerBtn").onclick = function () {
+      document.getElementById("shelfBody").innerHTML = Rewards.shelfHTML();
+      shelf.classList.add("open"); window.scrollTo(0, 0);
+    };
+    document.getElementById("shelfClose").onclick = function () { shelf.classList.remove("open"); };
+    // refresh stars when returning from a game (bfcache restore)
+    window.addEventListener("pageshow", refresh);
+  })();
+</script>
 </body>
 </html>
