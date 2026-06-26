@@ -9,6 +9,7 @@ Two gentle, kid-friendly browser games, tuned to be easy for a young child:
 - **[Color Hole](colorhole/)** — drag a hole to swallow everything and grow bigger before time runs out.
 - **[Slice Master](slicemaster/)** — swipe to slice flying fruit, chain combos, avoid the bomb.
 - **[Galaxia](galaxia/)** — slide to move, auto-fire, clear waves of diving aliens.
+- **[Number Run](numberrun/)** — steer through ×2/+10 math gates to grow your number to the finish.
 
 Both are single static HTML files with no dependencies, so they run great on an
 iPad in Safari.
@@ -25,6 +26,7 @@ Once Pages is turned on (see below), the games live at:
 - Color Hole: `https://ontosam.github.io/spacewaves/colorhole/`
 - Slice Master: `https://ontosam.github.io/spacewaves/slicemaster/`
 - Galaxia: `https://ontosam.github.io/spacewaves/galaxia/`
+- Number Run: `https://ontosam.github.io/spacewaves/numberrun/`
 
 On the iPad, open the home link in Safari, tap the **Share** button, and choose
 **Add to Home Screen** — it then opens full-screen like a real app.

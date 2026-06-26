@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Number Run — Kid Edition</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='86'>🔢</text></svg>" />
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #2a2350;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    color: #fff; touch-action: none; user-select: none;
+  }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas {
+    display: block; width: 100%; height: 100%;
+    background: linear-gradient(180deg, #6a8bd6 0%, #5a78c4 60%, #4a66b0 100%);
+    filter: saturate(1.35) contrast(1.04);
+  }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+    background: radial-gradient(120% 120% at 50% 30%, rgba(60,80,160,.45), rgba(20,20,55,.92));
+    backdrop-filter: blur(3px);
+  }
+  .hidden { display: none !important; }
+
+  h1 {
+    font-size: clamp(40px, 12vw, 86px); margin: 0;
+    color: #ffe27a; letter-spacing: 1px;
+    text-shadow: 0 4px 0 #b07a1a, 0 0 22px rgba(255,200,90,.5);
+  }
+  h1 .sub { display:block; font-size: clamp(13px,3.6vw,20px); letter-spacing:6px; color:#bfe3ff; text-shadow:none; margin-top:6px; }
+  p.tip { font-size: clamp(15px, 4vw, 20px); color: #eaf2ff; max-width: 480px; line-height: 1.55; }
+
+  .speeds { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin: 16px 0 4px; }
+  .btn {
+    cursor: pointer; border: none; border-radius: 16px; margin-top: 8px;
+    padding: 16px 26px; font-size: clamp(17px, 4.6vw, 24px); font-weight: bold;
+    color: #1a1c40; background: #ffe27a;
+    box-shadow: 0 6px 0 #b9923a, 0 10px 22px rgba(0,0,0,.4);
+    transition: transform .06s ease, box-shadow .06s ease;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b9923a, 0 6px 14px rgba(0,0,0,.4); }
+  .btn.speed { background: #9ec9ff; box-shadow: 0 6px 0 #4f7bc4, 0 10px 22px rgba(0,0,0,.4); color:#15203f; }
+  .btn.speed:active { box-shadow: 0 2px 0 #4f7bc4, 0 6px 14px rgba(0,0,0,.4); }
+  .btn.speed .lab { display:block; font-size: .6em; font-weight: normal; opacity: .85; margin-top: 2px; }
+  .btn.speed.sel { outline: 4px solid #fff; }
+
+  #hud {
+    position: fixed; top: 12px; left: 0; right: 0; z-index: 5;
+    display: flex; justify-content: center; align-items: center; gap: 26px;
+    font-size: clamp(20px, 6vw, 30px); font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0,0,0,.5); pointer-events: none;
+  }
+  #hud .lbl { font-size: .5em; color: #cfe0ff; display:block; text-align:center; }
+  .score-big { font-size: clamp(44px, 13vw, 96px); margin: 6px 0; color:#ffe27a; text-shadow:0 4px 0 #b07a1a; }
+  .best { color: #eaf2ff; font-size: clamp(15px, 4vw, 20px); }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game"></canvas></div>
+
+<div id="hud" class="hidden">
+  <div><span class="lbl">NUMBER</span><span id="hudNum">1</span></div>
+  <div><span class="lbl">BEST</span><span id="hudBest">0</span></div>
+</div>
+
+<div id="startScreen" class="overlay">
+  <h1>Number&nbsp;Run<span class="sub">KID EDITION</span></h1>
+  <p class="tip"><b>Slide your finger</b> to steer.<br>Run through the <b>green</b> gates to grow your number! 🔢<br>×2 doubles it, +10 adds — pick the bigger one!</p>
+  <p class="tip" style="margin-top:2px">Pick how fast:</p>
+  <div class="speeds" id="speedPicker"></div>
+  <button class="btn" id="playBtn">▶ Play</button>
+</div>
+
+<div id="overScreen" class="overlay hidden">
+  <h1 style="font-size:clamp(30px,9vw,62px)">You made it! 🏁</h1>
+  <div class="best" style="margin-bottom:-2px">Your number:</div>
+  <div class="score-big" id="finalScore">0</div>
+  <div class="best">Best: <span id="bestScore">0</span></div>
+  <button class="btn" id="againBtn">↻ Play Again</button>
+  <button class="btn speed" id="menuBtn">⚙ Change Speed</button>
+</div>
+
+<script src="../rewards.js" data-game="numberrun"></script>
+<script>
+(() => {
+  "use strict";
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  // ---- Presets. v=run speed, dist=length of run, hard=share of tricky (red) gates ----
+  const PRESETS = {
+    baby:   { label: "Baby",   sub: "easy & short", v: 165, dist: 4200, hard: 0.0 },
+    easy:   { label: "Easy",   sub: "for kids",     v: 205, dist: 6000, hard: 0.5 },
+    normal: { label: "Normal", sub: "a challenge",  v: 245, dist: 8200, hard: 1.0 },
+  };
+  let difficulty = localStorage.getItem("nr_diff") || "easy";
+
+  // ---- Canvas ----
+  let W=0,H=0,DPR=1;
+  function resize(){
+    DPR=Math.min(window.devicePixelRatio||1,2);
+    W=window.innerWidth; H=window.innerHeight;
+    canvas.width=Math.floor(W*DPR); canvas.height=Math.floor(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener("resize", resize); resize();
+
+  // ---- State (arrays init up front) ----
+  const STATE={MENU:0,PLAY:1,OVER:2};
+  let state=STATE.MENU;
+  let gates=[], pops=[], crowd=[], stripes=[];
+  let cfg=PRESETS[difficulty];
+  let number=1, dist=0, targetDist=6000, runnerX=0, targetX=0, runnerY=0, runnerR=22;
+  let nextGateDist=0, best=+(localStorage.getItem("nr_best_"+difficulty)||0), numPop=0;
+
+  const GATE_GAP=430;       // px between gates
+  const TRACK_M=18;         // side margin of the track
+
+  function reset(){
+    cfg=PRESETS[difficulty];
+    number=1; dist=0; targetDist=cfg.dist;
+    runnerY=H*0.80; runnerR=Math.max(18,Math.min(26,W*0.045));
+    runnerX=W/2; targetX=W/2;
+    gates=[]; pops=[]; crowd=[]; numPop=0;
+    makeStripes();
+    ensureGates();   // pre-fill the track so gates are flowing right away
+    best=+(localStorage.getItem("nr_best_"+difficulty)||0);
+    updateHud();
+  }
+
+  function makeStripes(){ stripes=[]; for(let i=0;i<Math.ceil(H/70)+2;i++) stripes.push(i*70); }
+
+  // ---- Input ----
+  function setTarget(e){ targetX=e.clientX; }
+  canvas.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setTarget(e); });
+  canvas.addEventListener("pointermove",(e)=>{ if(state===STATE.PLAY) setTarget(e); });
+  window.addEventListener("keydown",(e)=>{ if(state!==STATE.PLAY)return;
+    if(e.code==="ArrowLeft") targetX=Math.max(0,runnerX-70);
+    if(e.code==="ArrowRight") targetX=Math.min(W,runnerX+70); });
+
+  // ---- Gate generation ----
+  function fmt(n){ if(n>=1000000) return (n/1000000).toFixed(1)+"M"; if(n>=1000) return (n/1000).toFixed(n>=10000?0:1)+"k"; return ""+n; }
+  function applyOp(op,n){
+    if(op.t==="mul") return Math.round(n*op.v);
+    if(op.t==="add") return n+op.v;
+    if(op.t==="sub") return Math.max(1,n-op.v);
+    if(op.t==="div") return Math.max(1,Math.round(n/op.v));
+    return n;
+  }
+  function label(op){ return (op.t==="mul"?"×":op.t==="add"?"+":op.t==="sub"?"−":"÷")+op.v; }
+
+  function makeGateAt(y){
+    // two halves spanning the track; for baby both are good, else one good one bad
+    var goods=[{t:"mul",v:2},{t:"add",v:5},{t:"add",v:10},{t:"add",v:15},{t:"mul",v:2},{t:"mul",v:3}];
+    var bads=[{t:"sub",v:5},{t:"sub",v:10},{t:"div",v:2}];
+    var left, right;
+    if (Math.random() < cfg.hard*0.55){
+      var g=goods[Math.floor(Math.random()*goods.length)];
+      var b=bads[Math.floor(Math.random()*bads.length)];
+      if (Math.random()<0.5){ left={op:g,good:true}; right={op:b,good:false}; }
+      else { left={op:b,good:false}; right={op:g,good:true}; }
+    } else {
+      // both good — choose the bigger to grow faster
+      var g1=goods[Math.floor(Math.random()*goods.length)];
+      var g2=goods[Math.floor(Math.random()*goods.length)];
+      left={op:g1,good:true}; right={op:g2,good:true};
+    }
+    gates.push({ y:y, applied:false, left:left, right:right });
+  }
+
+  // keep the track filled with gates from just above the runner up past the top
+  function ensureGates(){
+    if (dist >= targetDist-260) return;
+    var top = gates.length ? Math.min.apply(null, gates.map(function(g){return g.y;})) : (runnerY - 230 + GATE_GAP);
+    while (top - GATE_GAP > -70){ top -= GATE_GAP; makeGateAt(top); }
+  }
+
+  // ---- Loop ----
+  let last=0;
+  function frame(t){
+    const dt=Math.min((t-last)/1000,0.033)||0; last=t;
+    if(state===STATE.PLAY) update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  function update(dt){
+    const move=cfg.v*dt;
+    dist+=move;
+
+    runnerX += (targetX-runnerX)*Math.min(1,dt*10);
+    runnerX = Math.max(runnerR+TRACK_M, Math.min(W-runnerR-TRACK_M, runnerX));
+
+    // keep the track populated
+    ensureGates();
+
+    // move gates, apply when they reach the runner
+    for (const g of gates){
+      g.y += move;
+      if (!g.applied && g.y >= runnerY){
+        g.applied = true;
+        const half = runnerX < W/2 ? g.left : g.right;
+        const before = number;
+        number = applyOp(half.op, number);
+        g.chosenLeft = runnerX < W/2;
+        numPop = 0.3;
+        spawnPops(runnerX, runnerY, half.good ? "#4ad66d" : "#ff6b6b", number>=before);
+        if (number>best){ best=number; localStorage.setItem("nr_best_"+difficulty,best); }
+        updateHud();
+      }
+    }
+    gates = gates.filter(g=>g.y < H+80);
+
+    // crowd dots ease toward a cluster around the runner
+    syncCrowd();
+    for (const d of crowd){ d.x += (runnerX + d.ox - d.x)*Math.min(1,dt*8); d.y += (runnerY + d.oy - d.y)*Math.min(1,dt*8); }
+
+    for (const p of pops){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=200*dt; p.life-=dt; }
+    pops = pops.filter(p=>p.life>0);
+    if (numPop>0) numPop-=dt;
+
+    // moving ground stripes
+    for (let i=0;i<stripes.length;i++){ stripes[i]+=move; if(stripes[i]>H) stripes[i]-=stripes.length*70; }
+
+    // finish
+    if (dist>=targetDist) return finishRun();
+  }
+
+  function syncCrowd(){
+    const want = Math.max(1, Math.min(28, Math.round(Math.log2(number+1)*4)));
+    while (crowd.length < want){ const a=Math.random()*6.28, rr=Math.random()*runnerR*1.6+8;
+      crowd.push({ x:runnerX, y:runnerY, ox:Math.cos(a)*rr, oy:Math.sin(a)*rr*0.7 + 6 }); }
+    while (crowd.length > want) crowd.pop();
+  }
+
+  function spawnPops(x,y,color,grew){
+    for (let i=0;i<12;i++){ const a=Math.random()*6.28,sp=Math.random()*160+40;
+      pops.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-60,life:0.5,color}); }
+  }
+
+  function finishRun(){
+    state=STATE.OVER;
+    document.getElementById("finalScore").textContent = number;
+    document.getElementById("bestScore").textContent = best;
+    document.getElementById("overScreen").classList.remove("hidden");
+    document.getElementById("hud").classList.add("hidden");
+  }
+
+  // ---- Draw ----
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    // track
+    ctx.fillStyle="#7d96da"; ctx.fillRect(TRACK_M,0,W-TRACK_M*2,H);
+    // center dashed line + ground stripes
+    ctx.strokeStyle="rgba(255,255,255,.25)"; ctx.lineWidth=4; ctx.setLineDash([18,20]);
+    ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle="rgba(255,255,255,.06)";
+    for (const s of stripes) ctx.fillRect(TRACK_M, s, W-TRACK_M*2, 34);
+
+    // finish line near end
+    const finishY = runnerY - (targetDist - dist);
+    if (finishY > -40 && finishY < H+40) drawFinish(finishY);
+
+    for (const g of gates) drawGate(g);
+
+    if (state!==STATE.MENU){
+      // crowd
+      for (const d of crowd){ ctx.fillStyle="rgba(255,255,255,.85)"; ctx.beginPath(); ctx.arc(d.x,d.y,5,0,6.28); ctx.fill(); }
+      drawRunner();
+    }
+
+    for (const p of pops){ ctx.globalAlpha=Math.max(0,p.life*2); ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,4,0,6.28); ctx.fill(); }
+    ctx.globalAlpha=1;
+  }
+
+  function drawFinish(y){
+    const t=14; ctx.save();
+    for (let x=TRACK_M, i=0; x<W-TRACK_M; x+=t, i++){
+      ctx.fillStyle = ((i+Math.floor(y/t))&1)?"#fff":"#222";
+      ctx.fillRect(x, y, t, t);
+    }
+    ctx.restore();
+  }
+
+  function drawGate(g){
+    const h=58, midX=W/2;
+    drawHalf(TRACK_M, g.y, midX-TRACK_M, h, g.left);
+    drawHalf(midX, g.y, W-TRACK_M-midX, h, g.right);
+  }
+  function drawHalf(x,y,w,h,half){
+    ctx.globalAlpha=0.9;
+    ctx.fillStyle = half.good ? "rgba(74,214,109,.85)" : "rgba(255,107,107,.85)";
+    ctx.fillRect(x,y,w,h);
+    ctx.globalAlpha=1;
+    ctx.strokeStyle="rgba(255,255,255,.7)"; ctx.lineWidth=3; ctx.strokeRect(x+1,y+1,w-2,h-2);
+    ctx.fillStyle="#fff"; ctx.font="bold "+Math.round(Math.min(w*0.4,34))+"px Trebuchet MS";
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(label(half.op), x+w/2, y+h/2);
+    ctx.textBaseline="alphabetic";
+  }
+
+  function drawRunner(){
+    const x=runnerX, y=runnerY, r=runnerR, pop = numPop>0 ? (1+numPop*0.5) : 1;
+    // body
+    ctx.save(); ctx.translate(x,y);
+    ctx.fillStyle="rgba(0,0,0,.15)"; ctx.beginPath(); ctx.ellipse(0,r*0.9,r*0.9,r*0.3,0,0,6.28); ctx.fill();
+    ctx.fillStyle="#ffd23f"; ctx.beginPath(); ctx.arc(0,0,r,0,6.28); ctx.fill();
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(-r*0.32,-r*0.15,r*0.24,0,6.28); ctx.arc(r*0.32,-r*0.15,r*0.24,0,6.28); ctx.fill();
+    ctx.fillStyle="#222"; ctx.beginPath(); ctx.arc(-r*0.3,-r*0.12,r*0.11,0,6.28); ctx.arc(r*0.34,-r*0.12,r*0.11,0,6.28); ctx.fill();
+    ctx.strokeStyle="#222"; ctx.lineWidth=2.4; ctx.beginPath(); ctx.arc(0,r*0.2,r*0.32,0.15*Math.PI,0.85*Math.PI); ctx.stroke();
+    ctx.restore();
+    // big number above runner
+    ctx.save(); ctx.translate(x, y - r - 16); ctx.scale(pop,pop);
+    ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,.4)"; ctx.lineWidth=4;
+    ctx.font="bold "+Math.round(Math.min(W,H)*0.06)+"px Trebuchet MS"; ctx.textAlign="center";
+    const txt = number<10000 ? (""+number) : fmt(number);
+    ctx.strokeText(txt,0,0); ctx.fillText(txt,0,0);
+    ctx.restore();
+  }
+
+  // ---- HUD / UI ----
+  function updateHud(){
+    document.getElementById("hudNum").textContent = number<10000 ? number : fmt(number);
+    document.getElementById("hudBest").textContent = (Math.max(best,number));
+  }
+
+  const picker=document.getElementById("speedPicker");
+  function buildPicker(){
+    picker.innerHTML="";
+    for (const key of Object.keys(PRESETS)){
+      const p=PRESETS[key];
+      const b=document.createElement("button");
+      b.className="btn speed"+(key===difficulty?" sel":"");
+      b.innerHTML=p.label+'<span class="lab">'+p.sub+"</span>";
+      b.onclick=()=>{ difficulty=key; localStorage.setItem("nr_diff",key); buildPicker(); };
+      picker.appendChild(b);
+    }
+  }
+  buildPicker();
+
+  function startGame(){
+    reset(); state=STATE.PLAY;
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("hud").classList.remove("hidden");
+  }
+  function showMenu(){
+    state=STATE.MENU; buildPicker();
+    document.getElementById("startScreen").classList.remove("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("hud").classList.add("hidden");
+  }
+  document.getElementById("playBtn").onclick=startGame;
+  document.getElementById("againBtn").onclick=startGame;
+  document.getElementById("menuBtn").onclick=showMenu;
+
+  // ---- test hook ----
+  window.__nrtest = {
+    start(){ startGame(); },
+    setX(x){ targetX=x; },
+    getGates(){ return gates.filter(g=>!g.applied).map(g=>({y:g.y, leftGood:g.left.good, rightGood:g.right.good})); },
+    getState(){ return { state, number, dist:Math.round(dist), target:targetDist }; },
+    finish(){ dist=targetDist; },
+  };
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -14,7 +14,7 @@
   var GAMES = {
     spacewaves: "Space Waves", ballmaster: "Ball Master", starblaster: "Star Blaster",
     balloonpop: "Balloon Pop", colorhole: "Color Hole", slicemaster: "Slice Master",
-    galaxia: "Galaxia"
+    galaxia: "Galaxia", numberrun: "Number Run"
   };
 
   function blank() { return { stars: 0, plays: {}, totalPlays: 0, bests: {}, stickers: {}, lastDay: null, days: 0 }; }
@@ -52,7 +52,9 @@
     { id: "sl_play",  emoji: "🍉", name: "Fruit Friend",   desc: "Play Slice Master",           test: function (d) { return d.plays.slicemaster; } },
     { id: "sl_20",    emoji: "🔪", name: "Combo King",     desc: "Score 20 in Slice Master",    test: function (d) { return (d.bests.slicemaster || 0) >= 20; } },
     { id: "gx_play",  emoji: "👾", name: "Alien Hunter",   desc: "Play Galaxia",                test: function (d) { return d.plays.galaxia; } },
-    { id: "gx_w3",    emoji: "💥", name: "Wave Crusher",   desc: "Reach wave 3 in Galaxia",     test: function (d) { return (d.bests["galaxia:level"] || 0) >= 3; } }
+    { id: "gx_w3",    emoji: "💥", name: "Wave Crusher",   desc: "Reach wave 3 in Galaxia",     test: function (d) { return (d.bests["galaxia:level"] || 0) >= 3; } },
+    { id: "nr_play",  emoji: "🔢", name: "Number Runner",  desc: "Play Number Run",             test: function (d) { return d.plays.numberrun; } },
+    { id: "nr_200",   emoji: "🧮", name: "Math Whiz",      desc: "Reach 200 in Number Run",     test: function (d) { return (d.bests.numberrun || 0) >= 200; } }
   ];
 
   // ---- Core: record the end of a run ----
@@ -150,7 +152,8 @@
     balloonpop: [ { id: "overScreen", get: function () { return { score: num("finalScore") }; } } ],
     colorhole:  [ { id: "overScreen", get: function () { return { score: num("finalScore") }; } } ],
     slicemaster:[ { id: "overScreen", get: function () { return { score: num("finalScore") }; } } ],
-    galaxia:    [ { id: "overScreen", get: function () { return { score: num("finalScore"), level: num("finalWave") }; } } ]
+    galaxia:    [ { id: "overScreen", get: function () { return { score: num("finalScore"), level: num("finalWave") }; } } ],
+    numberrun:  [ { id: "overScreen", get: function () { return { score: num("finalScore") }; } } ]
   };
 
   function wireGame(gameId) {
