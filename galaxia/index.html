@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Galaxia — Kid Edition</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👾</text></svg>" />
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #050313;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    color: #eaf2ff; touch-action: none; user-select: none;
+  }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas {
+    display: block; width: 100%; height: 100%;
+    background: linear-gradient(180deg, #0a0830 0%, #070522 60%, #050313 100%);
+    filter: saturate(1.4) brightness(1.06);
+  }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+    background: radial-gradient(120% 120% at 50% 30%, rgba(40,40,120,.5), rgba(5,3,19,.93));
+    backdrop-filter: blur(3px);
+  }
+  .hidden { display: none !important; }
+
+  h1 {
+    font-size: clamp(40px, 12vw, 86px); margin: 0;
+    color: #6cf0c8; letter-spacing: 3px;
+    text-shadow: 0 0 18px rgba(80,240,200,.7), 0 4px 0 #1c7a63;
+  }
+  h1 .sub { display:block; font-size: clamp(13px,3.6vw,20px); letter-spacing:6px; color:#ffd54a; text-shadow:none; margin-top:6px; }
+  p.tip { font-size: clamp(15px, 4vw, 20px); color: #d8e2ff; max-width: 480px; line-height: 1.55; }
+
+  .speeds { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin: 16px 0 4px; }
+  .btn {
+    cursor: pointer; border: none; border-radius: 16px; margin-top: 8px;
+    padding: 16px 26px; font-size: clamp(17px, 4.6vw, 24px); font-weight: bold;
+    color: #06081a; background: #ffd166;
+    box-shadow: 0 6px 0 #b9923a, 0 10px 22px rgba(0,0,0,.4);
+    transition: transform .06s ease, box-shadow .06s ease;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b9923a, 0 6px 14px rgba(0,0,0,.4); }
+  .btn.speed { background: #6cf0c8; box-shadow: 0 6px 0 #2b9c80, 0 10px 22px rgba(0,0,0,.4); color:#06322a; }
+  .btn.speed:active { box-shadow: 0 2px 0 #2b9c80, 0 6px 14px rgba(0,0,0,.4); }
+  .btn.speed .lab { display:block; font-size: .6em; font-weight: normal; opacity: .85; margin-top: 2px; }
+  .btn.speed.sel { outline: 4px solid #fff; }
+
+  #hud {
+    position: fixed; top: 12px; left: 0; right: 0; z-index: 5;
+    display: flex; justify-content: center; align-items: center; gap: 22px;
+    font-size: clamp(20px, 6vw, 30px); font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0,0,0,.6); pointer-events: none;
+  }
+  #hud .lbl { font-size: .5em; color: #9fe9d6; display:block; text-align:center; }
+  #hudLives { font-size: clamp(20px, 6vw, 30px); letter-spacing: 1px; }
+  .score-big { font-size: clamp(44px, 13vw, 96px); margin: 6px 0; color:#6cf0c8; text-shadow:0 0 16px rgba(80,240,200,.6); }
+  .best { color: #d8e2ff; font-size: clamp(15px, 4vw, 20px); }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game"></canvas></div>
+
+<div id="hud" class="hidden">
+  <div><span class="lbl">SCORE</span><span id="hudScore">0</span></div>
+  <div><span class="lbl">WAVE</span><span id="hudWave">1</span></div>
+  <div id="hudLives">❤️❤️❤️</div>
+  <div><span class="lbl">BEST</span><span id="hudBest">0</span></div>
+</div>
+
+<div id="startScreen" class="overlay">
+  <h1>GALAXIA<span class="sub">KID EDITION</span></h1>
+  <p class="tip"><b>Slide your finger</b> to move. It shoots by itself! 🔫<br>Blast the aliens — watch out, some <b>dive</b> at you!<br>Clear them all to reach the next wave. 👾</p>
+  <p class="tip" style="margin-top:2px">Pick how fast:</p>
+  <div class="speeds" id="speedPicker"></div>
+  <button class="btn" id="playBtn">▶ Play</button>
+</div>
+
+<div id="overScreen" class="overlay hidden">
+  <h1 style="font-size:clamp(30px,9vw,62px)">Good game! 🎉</h1>
+  <div class="score-big" id="finalScore">0</div>
+  <div class="best">Best: <span id="bestScore">0</span> &nbsp;·&nbsp; Wave <span id="finalWave">1</span></div>
+  <button class="btn" id="againBtn">↻ Play Again</button>
+  <button class="btn speed" id="menuBtn">⚙ Change Speed</button>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  // ---- Presets (gentle). fire=ship shot interval, dive=sec between dives,
+  //      diveSpd=dive fall speed, eFire=enemy shot chance (0 = none), cols/rows = formation ----
+  const PRESETS = {
+    baby:   { label: "Baby",   sub: "no shots",   fire: 0.28, dive: 2.6, diveSpd: 120, eFire: 0.0,  cols: 5, rows: 2 },
+    easy:   { label: "Easy",   sub: "for kids",   fire: 0.26, dive: 1.9, diveSpd: 150, eFire: 0.25, cols: 6, rows: 3 },
+    normal: { label: "Normal", sub: "a challenge",fire: 0.24, dive: 1.3, diveSpd: 185, eFire: 0.5,  cols: 7, rows: 3 },
+  };
+  let difficulty = localStorage.getItem("gx_diff") || "easy";
+
+  // ---- Canvas ----
+  let W=0,H=0,DPR=1;
+  function resize(){
+    DPR=Math.min(window.devicePixelRatio||1,2);
+    W=window.innerWidth; H=window.innerHeight;
+    canvas.width=Math.floor(W*DPR); canvas.height=Math.floor(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener("resize", resize); resize();
+
+  // ---- Stars ----
+  let stars=[];
+  function makeStars(){ stars=[]; const n=Math.round((W*H)/9000);
+    for(let i=0;i<n;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+0.4,s:Math.random()*30+12}); }
+  makeStars(); window.addEventListener("resize", makeStars);
+
+  const ALIEN_COLORS = ["#ff6b6b","#ffd23f","#6cf0c8","#b56bff","#4dabf7"];
+
+  // ---- State (arrays init up front) ----
+  const STATE={MENU:0,PLAY:1,OVER:2};
+  let state=STATE.MENU;
+  let ship={x:0,y:0,r:24,inv:0};
+  let targetX=0;
+  let bullets=[], eBullets=[], enemies=[], particles=[];
+  let cfg=PRESETS[difficulty];
+  let score=0, lives=3, wave=1, best=+(localStorage.getItem("gx_best_"+difficulty)||0);
+  let fireTimer=0, diveTimer=0, swayT=0, elapsed=0;
+
+  function reset(){
+    cfg=PRESETS[difficulty];
+    ship={x:W/2,y:H-Math.max(90,H*0.12),r:Math.max(20,Math.min(30,W*0.05)),inv:0};
+    targetX=ship.x;
+    bullets=[]; eBullets=[]; particles=[];
+    score=0; lives=3; wave=1;
+    fireTimer=0; diveTimer=cfg.dive; swayT=0; elapsed=0;
+    best=+(localStorage.getItem("gx_best_"+difficulty)||0);
+    buildFormation();
+    updateHud();
+  }
+
+  function buildFormation(){
+    enemies=[];
+    const cols=cfg.cols, rows=cfg.rows;
+    const top=120, spacingX=W/(cols+1), spacingY=Math.min(54, (H*0.4)/rows);
+    const waveSpd = 1 + (wave-1)*0.12;       // gentle ramp per wave
+    for (let r=0;r<rows;r++){
+      for (let c=0;c<cols;c++){
+        enemies.push({
+          homeX: spacingX*(c+1), homeY: top + r*spacingY,
+          x: spacingX*(c+1), y: top + r*spacingY - 220 - r*20, // slide-in from above
+          r: Math.max(15, Math.min(22, spacingX*0.28)),
+          colIdx: r % ALIEN_COLORS.length, alive:true,
+          mode:"enter", diveT:0, swayPhase: c*0.4 + r,
+          waveSpd,
+        });
+      }
+    }
+  }
+
+  // ---- Input: ship follows finger; auto-fire ----
+  function setTarget(e){ targetX=e.clientX; }
+  canvas.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setTarget(e); });
+  canvas.addEventListener("pointermove",(e)=>{ if (state===STATE.PLAY) setTarget(e); });
+  window.addEventListener("keydown",(e)=>{ if (state!==STATE.PLAY) return;
+    if (e.code==="ArrowLeft") targetX=Math.max(ship.r,ship.x-60);
+    if (e.code==="ArrowRight") targetX=Math.min(W-ship.r,ship.x+60); });
+
+  // ---- Loop ----
+  let last=0;
+  function frame(t){
+    const dt=Math.min((t-last)/1000,0.033)||0; last=t;
+    if (state===STATE.PLAY) update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  function update(dt){
+    elapsed+=dt; swayT+=dt;
+    if (ship.inv>0) ship.inv-=dt;
+
+    // ship move + auto fire
+    ship.x += (targetX-ship.x)*Math.min(1,dt*12);
+    ship.x = Math.max(ship.r,Math.min(W-ship.r,ship.x));
+    fireTimer-=dt;
+    if (fireTimer<=0){ fireTimer=cfg.fire; bullets.push({x:ship.x,y:ship.y-ship.r,vy:-620,r:6}); }
+
+    // bullets
+    for (const b of bullets) b.y+=b.vy*dt;
+    bullets=bullets.filter(b=>b.y>-20);
+    for (const b of eBullets){ b.y+=b.vy*dt; b.x+=(b.vx||0)*dt; }
+    eBullets=eBullets.filter(b=>b.y<H+20);
+
+    // sway offset for formation
+    const sway = Math.sin(swayT*0.9)*Math.min(26, W*0.03);
+
+    // dives
+    diveTimer-=dt;
+    if (diveTimer<=0){
+      diveTimer=cfg.dive*(0.7+Math.random()*0.6);
+      const form=enemies.filter(e=>e.alive && e.mode==="form");
+      if (form.length){ const pick=form[Math.floor(Math.random()*form.length)]; pick.mode="dive"; pick.diveT=0; pick.diveX0=pick.x; }
+    }
+
+    for (const e of enemies){
+      if (!e.alive) continue;
+      if (e.mode==="enter"){
+        e.y += 260*dt;
+        if (e.y >= e.homeY){ e.y=e.homeY; e.mode="form"; }
+        e.x = e.homeX + sway;
+      } else if (e.mode==="form"){
+        e.x = e.homeX + sway;
+        e.y = e.homeY;
+      } else if (e.mode==="dive"){
+        e.diveT += dt;
+        e.y += cfg.diveSpd * e.waveSpd * dt;
+        e.x = e.diveX0 + Math.sin(e.diveT*3)*70 + (ship.x - e.diveX0)*Math.min(0.4, e.diveT*0.12);
+        // enemy fire
+        if (cfg.eFire>0 && Math.random() < cfg.eFire*dt){ eBullets.push({x:e.x,y:e.y+e.r,vy:230, vx:0, r:5}); }
+        if (e.y > H + e.r){ e.mode="return"; e.y=-e.r; }
+      } else if (e.mode==="return"){
+        e.x += (e.homeX+sway - e.x)*Math.min(1,dt*3);
+        e.y += (e.homeY - e.y)*Math.min(1,dt*3);
+        if (Math.abs(e.y-e.homeY)<4){ e.mode="form"; }
+      }
+    }
+
+    // player bullets vs enemies
+    for (const e of enemies){
+      if (!e.alive) continue;
+      for (const b of bullets){
+        if (b.dead) continue;
+        const dx=b.x-e.x, dy=b.y-e.y, rr=e.r+b.r;
+        if (dx*dx+dy*dy<rr*rr){ b.dead=true; e.alive=false;
+          const pts = e.mode==="dive"?5:2; score+=pts; addParticles(e.x,e.y,ALIEN_COLORS[e.colIdx]);
+          break;
+        }
+      }
+    }
+    bullets=bullets.filter(b=>!b.dead);
+
+    // hits on player
+    if (ship.inv<=0){
+      for (const b of eBullets){ const dx=b.x-ship.x, dy=b.y-ship.y, rr=ship.r*0.7+b.r;
+        if (dx*dx+dy*dy<rr*rr){ b.dead=true; hitPlayer(); break; } }
+      eBullets=eBullets.filter(b=>!b.dead);
+      for (const e of enemies){ if (!e.alive||e.mode!=="dive") continue;
+        const dx=e.x-ship.x, dy=e.y-ship.y, rr=ship.r*0.7+e.r;
+        if (dx*dx+dy*dy<rr*rr){ e.mode="return"; e.y=-e.r; hitPlayer(); break; } }
+    }
+
+    // particles + stars
+    for (const p of particles){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=160*dt; p.life-=dt; }
+    particles=particles.filter(p=>p.life>0);
+    for (const s of stars){ s.y+=s.s*dt; if (s.y>H){ s.y=0; s.x=Math.random()*W; } }
+
+    // wave cleared?
+    if (!enemies.some(e=>e.alive)){ wave++; buildFormation(); diveTimer=cfg.dive; }
+
+    if (best<score){ best=score; localStorage.setItem("gx_best_"+difficulty,best); }
+    updateHud();
+  }
+
+  function hitPlayer(){
+    lives-=1; ship.inv=1.4; eBullets=[]; addParticles(ship.x,ship.y,"#ff7b54");
+    updateHud();
+    if (lives<=0) gameOver();
+  }
+  function addParticles(x,y,color){ for(let i=0;i<14;i++){ const a=Math.random()*6.28,sp=Math.random()*170+40;
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-30,life:0.5+Math.random()*0.3,color}); } }
+
+  function gameOver(){
+    state=STATE.OVER;
+    document.getElementById("finalScore").textContent=score;
+    document.getElementById("bestScore").textContent=best;
+    document.getElementById("finalWave").textContent=wave;
+    document.getElementById("overScreen").classList.remove("hidden");
+    document.getElementById("hud").classList.add("hidden");
+  }
+
+  // ---- Draw ----
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    for (const s of stars){ ctx.globalAlpha=0.45+(s.s/60); ctx.fillStyle="#cfe0ff"; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,6.28); ctx.fill(); }
+    ctx.globalAlpha=1;
+
+    for (const e of enemies){ if (e.alive) drawAlien(e); }
+
+    // player bullets
+    for (const b of bullets){ ctx.fillStyle="#ffe27a"; ctx.shadowColor="#ffd54a"; ctx.shadowBlur=10; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,6.28); ctx.fill(); ctx.shadowBlur=0; }
+    // enemy bullets
+    for (const b of eBullets){ ctx.fillStyle="#ff7b9c"; ctx.shadowColor="#ff5a7a"; ctx.shadowBlur=8; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,6.28); ctx.fill(); ctx.shadowBlur=0; }
+
+    if (state!==STATE.MENU) drawShip();
+
+    for (const p of particles){ ctx.globalAlpha=Math.max(0,p.life*2); ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,4,0,6.28); ctx.fill(); }
+    ctx.globalAlpha=1;
+  }
+
+  function drawShip(){
+    if (ship.inv>0 && Math.floor(ship.inv*12)%2===0) return; // flicker while invulnerable
+    const s=ship; ctx.save(); ctx.translate(s.x,s.y);
+    ctx.fillStyle="#ff7b54"; ctx.beginPath(); ctx.moveTo(-7,s.r*0.6); ctx.lineTo(0,s.r*0.6+9+Math.random()*7); ctx.lineTo(7,s.r*0.6); ctx.closePath(); ctx.fill();
+    ctx.shadowColor="#6cf0c8"; ctx.shadowBlur=14; ctx.fillStyle="#6cf0c8";
+    ctx.beginPath(); ctx.moveTo(0,-s.r); ctx.lineTo(s.r*0.8,s.r*0.7); ctx.lineTo(0,s.r*0.4); ctx.lineTo(-s.r*0.8,s.r*0.7); ctx.closePath(); ctx.fill();
+    ctx.shadowBlur=0; ctx.fillStyle="#16324a"; ctx.beginPath(); ctx.arc(0,-s.r*0.1,s.r*0.26,0,6.28); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawAlien(e){
+    ctx.save(); ctx.translate(e.x,e.y);
+    const col=ALIEN_COLORS[e.colIdx], r=e.r;
+    const bob = e.mode==="form" ? Math.sin(swayT*4 + e.swayPhase)*1.5 : 0;
+    ctx.translate(0,bob);
+    // body
+    const g=ctx.createRadialGradient(-r*0.3,-r*0.3,r*0.1,0,0,r);
+    g.addColorStop(0,"#ffffff"); g.addColorStop(0.25,col); g.addColorStop(1,col);
+    ctx.fillStyle=col;
+    ctx.beginPath(); ctx.arc(0,0,r,Math.PI,0); // dome top
+    ctx.lineTo(r,r*0.5);
+    // little legs
+    for (let i=0;i<3;i++){ const x=r - i*r; ctx.lineTo(x, r*0.5+ (i%2?6:0)); }
+    ctx.lineTo(-r,r*0.5); ctx.closePath(); ctx.fill();
+    // eyes
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(-r*0.35,-r*0.1,r*0.26,0,6.28); ctx.arc(r*0.35,-r*0.1,r*0.26,0,6.28); ctx.fill();
+    ctx.fillStyle="#222"; ctx.beginPath(); ctx.arc(-r*0.35,-r*0.05,r*0.12,0,6.28); ctx.arc(r*0.35,-r*0.05,r*0.12,0,6.28); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---- HUD / UI ----
+  function updateHud(){
+    document.getElementById("hudScore").textContent=score;
+    document.getElementById("hudWave").textContent=wave;
+    document.getElementById("hudBest").textContent=Math.max(best,score);
+    document.getElementById("hudLives").textContent="❤️".repeat(Math.max(0,lives))+"🖤".repeat(Math.max(0,3-lives));
+  }
+
+  const picker=document.getElementById("speedPicker");
+  function buildPicker(){
+    picker.innerHTML="";
+    for (const key of Object.keys(PRESETS)){
+      const p=PRESETS[key];
+      const b=document.createElement("button");
+      b.className="btn speed"+(key===difficulty?" sel":"");
+      b.innerHTML=p.label+'<span class="lab">'+p.sub+"</span>";
+      b.onclick=()=>{ difficulty=key; localStorage.setItem("gx_diff",key); buildPicker(); };
+      picker.appendChild(b);
+    }
+  }
+  buildPicker();
+
+  function startGame(){
+    reset(); state=STATE.PLAY;
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("hud").classList.remove("hidden");
+  }
+  function showMenu(){
+    state=STATE.MENU; buildPicker();
+    document.getElementById("startScreen").classList.remove("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("hud").classList.add("hidden");
+  }
+  document.getElementById("playBtn").onclick=startGame;
+  document.getElementById("againBtn").onclick=startGame;
+  document.getElementById("menuBtn").onclick=showMenu;
+
+  // ---- test hook ----
+  window.__gxtest = {
+    start(){ startGame(); },
+    getState(){ return { state, score, lives, wave, enemies: enemies.filter(e=>e.alive).length }; },
+    getEnemies(){ return enemies.filter(e=>e.alive).map(e=>({x:e.x,y:e.y,r:e.r,mode:e.mode})); },
+    clearEnemies(){ for (const e of enemies) e.alive=false; },
+    damage(){ ship.inv=0; hitPlayer(); },
+  };
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
