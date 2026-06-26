@@ -62,6 +62,25 @@
   #hudHp { font-size: clamp(18px, 5.4vw, 26px); letter-spacing: 1px; }
   .score-big { font-size: clamp(44px, 13vw, 96px); margin: 6px 0; color:#ffe27a; text-shadow:0 4px 0 #1f7a34; }
   .best { color: #eafff0; font-size: clamp(15px, 4vw, 20px); }
+  .earned { color: #ffe27a; font-weight: bold; font-size: clamp(16px,4.4vw,22px); margin-top: 8px; }
+
+  /* ---- Upgrade shop ---- */
+  .wallet { font-size: clamp(22px, 6vw, 30px); font-weight: bold; color: #ffe27a; margin: 12px 0 2px; text-shadow: 0 2px 4px rgba(0,0,0,.4); }
+  .up-title { color: #cdeed6; font-size: clamp(13px, 3.6vw, 17px); margin-bottom: 6px; }
+  .upgrades { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 470px; }
+  .up {
+    cursor: pointer; border: none; border-radius: 14px; padding: 10px 12px; min-width: 100px;
+    background: #2e6a3c; color: #fff; font-weight: bold; font-size: clamp(13px, 3.4vw, 16px);
+    box-shadow: 0 4px 0 #1c4226; transition: transform .06s ease, box-shadow .06s ease;
+  }
+  .up:active { transform: translateY(3px); box-shadow: 0 1px 0 #1c4226; }
+  .up .ic { font-size: 1.5em; display: block; line-height: 1.1; }
+  .up .nm { display:block; font-size: .92em; }
+  .up .lv { display:block; font-size: .8em; color: #bfe3c8; }
+  .up .cost { display:block; font-size: .82em; color: #ffe27a; margin-top: 2px; }
+  .up.cant { opacity: .55; box-shadow: 0 4px 0 #1c4226; }
+  .up.maxed { background: #4a7a8a; box-shadow: 0 4px 0 #2e4f5a; }
+  .up.maxed .cost { color: #cfeef7; }
 </style>
 </head>
 <body>
@@ -71,13 +90,16 @@
   <div><span class="lbl">TIME</span><span id="hudTime">0</span></div>
   <div><span class="lbl">LEVEL</span><span id="hudLevel">1</span></div>
   <div id="hudHp">❤️❤️❤️</div>
-  <div><span class="lbl">BEST</span><span id="hudBest">0</span></div>
+  <div><span class="lbl">🪙 COINS</span><span id="hudCoins">0</span></div>
 </div>
 
 <div id="startScreen" class="overlay">
   <h1>Tower&nbsp;Survivor<span class="sub">KID EDITION</span></h1>
   <p class="tip"><b>Drag your finger</b> to move your hero. 🛡️<br>It swings at monsters all by itself!<br>Grab the <b>blue gems</b> to power up. Survive as long as you can!</p>
-  <p class="tip" style="margin-top:2px">Pick how tough:</p>
+  <div class="wallet">🪙 <span id="walletBal">0</span></div>
+  <div class="up-title">Spend coins to power up your hero forever:</div>
+  <div class="upgrades" id="upgrades"></div>
+  <p class="tip" style="margin-top:6px">Pick how tough:</p>
   <div class="speeds" id="speedPicker"></div>
   <button class="btn" id="playBtn">▶ Play</button>
 </div>
@@ -87,8 +109,9 @@
   <div class="best" style="margin-bottom:-2px">You survived</div>
   <div class="score-big"><span id="finalScore">0</span><span style="font-size:.4em"> sec</span></div>
   <div class="best">Best: <span id="bestScore">0</span> sec &nbsp;·&nbsp; Level <span id="finalLevel">1</span></div>
+  <div class="earned">You earned <span id="earnedCoins">0</span> 🪙</div>
   <button class="btn" id="againBtn">↻ Play Again</button>
-  <button class="btn speed" id="menuBtn">⚙ Change Level</button>
+  <button class="btn speed" id="menuBtn">🛒 Upgrades & Level</button>
 </div>
 
 <script src="../rewards.js" data-game="survivor"></script>
@@ -105,6 +128,22 @@
     normal: { label: "Normal", sub: "a fight",   hp: 4, dmg: 3, eSpd: 74, spawn: 0.85, ramp: 0.22 },
   };
   let difficulty = localStorage.getItem("sv_diff") || "easy";
+
+  // ---- Permanent upgrade shop (earn coins in battle, spend them here) ----
+  const UPGRADES = [
+    { key:"dmg", ic:"⚔️", name:"Power"  },
+    { key:"hp",  ic:"❤️", name:"Health" },
+    { key:"spd", ic:"⚡", name:"Attack" },
+    { key:"mov", ic:"👟", name:"Speed"  },
+  ];
+  const UP_BASE = { dmg:40, hp:50, spd:50, mov:45 };
+  const UP_MUL  = { dmg:1.55, hp:1.7, spd:1.65, mov:1.6 };
+  const UP_MAX  = { dmg:40, hp:12, spd:16, mov:14 };
+  function loadShop(){ try { var s=JSON.parse(localStorage.getItem("sv_shop")); if(!s||typeof s!=="object") s={}; s.coins=s.coins||0; s.up=s.up||{}; UPGRADES.forEach(function(u){ s.up[u.key]=s.up[u.key]||0; }); return s; } catch(e){ return {coins:0, up:{dmg:0,hp:0,spd:0,mov:0}}; } }
+  let shop = loadShop();
+  function saveShop(){ try{ localStorage.setItem("sv_shop", JSON.stringify(shop)); }catch(e){} }
+  function upCost(key){ return Math.round(UP_BASE[key]*Math.pow(UP_MUL[key], shop.up[key])); }
+  let runCoins = 0;
 
   // ---- Canvas ----
   let W=0,H=0,DPR=1;
@@ -129,11 +168,19 @@
 
   function reset(){
     cfg=PRESETS[difficulty];
-    hero={x:W/2,y:H/2,r:Math.max(16,Math.min(24,W*0.045)),hp:cfg.hp,maxhp:cfg.hp,inv:0};
+    // apply permanent upgrades on top of the difficulty base
+    const maxhp = cfg.hp + shop.up.hp;
+    hero={x:W/2,y:H/2,r:Math.max(16,Math.min(24,W*0.045)),hp:maxhp,maxhp:maxhp,inv:0};
     targetX=hero.x; targetY=hero.y;
-    stats={dmg:cfg.dmg,fireInt:0.55,proj:1,speed:235,pickup:90,level:1,xp:0,xpNext:5};
+    stats={
+      dmg: cfg.dmg + shop.up.dmg*2,
+      fireInt: Math.max(0.16, 0.55*Math.pow(0.9, shop.up.spd)),
+      proj:1,
+      speed: 235 + shop.up.mov*16,
+      pickup:90, level:1, xp:0, xpNext:5
+    };
     enemies=[]; bullets=[]; gems=[]; particles=[]; floaters=[];
-    timeAlive=0; spawnTimer=0.6; fireTimer=0; elapsed=0;
+    timeAlive=0; spawnTimer=0.6; fireTimer=0; elapsed=0; runCoins=0;
     best=+(localStorage.getItem("sv_best_"+difficulty)||0);
     updateHud();
   }
@@ -197,7 +244,7 @@
       for (const e of enemies){ if (e.dead) continue;
         const dx=b.x-e.x, dy=b.y-e.y, rr=e.r+b.r;
         if (dx*dx+dy*dy<rr*rr){ b.dead=true; e.hp-=b.dmg; pop(b.x,b.y,e.color,4);
-          if (e.hp<=0){ e.dead=true; gems.push({x:e.x,y:e.y,r:7,val:e.xp,vx:0,vy:0}); pop(e.x,e.y,e.color,10); }
+          if (e.hp<=0){ e.dead=true; runCoins+=e.coin; gems.push({x:e.x,y:e.y,r:7,val:e.xp,vx:0,vy:0}); pop(e.x,e.y,e.color,10); }
           break; }
       }
     }
@@ -234,7 +281,7 @@
     if (s===0){ x=Math.random()*W; y=-r; } else if (s===1){ x=Math.random()*W; y=H+r; }
     else if (s===2){ x=-r; y=Math.random()*H; } else { x=W+r; y=Math.random()*H; }
     enemies.push({ x,y,r, spd:cfg.eSpd*ramp*(big?0.8:1)*(0.9+Math.random()*0.2),
-      hp:big?6:2, color:big?"#9b5cff":"#ff6b6b", xp:big?3:1, wob:Math.random()*6, dead:false });
+      hp:big?6:2, color:big?"#9b5cff":"#ff6b6b", xp:big?3:1, coin:big?3:1, wob:Math.random()*6, dead:false });
   }
 
   function gainXp(v){
@@ -267,9 +314,11 @@
 
   function gameOver(){
     state=STATE.OVER;
+    shop.coins += runCoins; saveShop();   // bank the coins earned this run
     document.getElementById("finalScore").textContent=Math.floor(timeAlive);
     document.getElementById("bestScore").textContent=best;
     document.getElementById("finalLevel").textContent=stats.level;
+    document.getElementById("earnedCoins").textContent=runCoins;
     document.getElementById("overScreen").classList.remove("hidden");
     document.getElementById("hud").classList.add("hidden");
   }
@@ -347,7 +396,7 @@
   function updateHud(){
     document.getElementById("hudTime").textContent=Math.floor(timeAlive);
     document.getElementById("hudLevel").textContent=stats.level;
-    document.getElementById("hudBest").textContent=Math.max(best,Math.floor(timeAlive));
+    document.getElementById("hudCoins").textContent=runCoins;
     const hp=Math.max(0,hero.hp), empty=Math.max(0,hero.maxhp-hp);
     document.getElementById("hudHp").textContent="❤️".repeat(hp)+"🖤".repeat(empty);
   }
@@ -366,6 +415,29 @@
   }
   buildPicker();
 
+  // ---- Upgrade shop UI ----
+  const upWrap=document.getElementById("upgrades");
+  function buildShop(){
+    document.getElementById("walletBal").textContent=shop.coins;
+    upWrap.innerHTML="";
+    for (const u of UPGRADES){
+      const lv=shop.up[u.key], maxed=lv>=UP_MAX[u.key], cost=upCost(u.key);
+      const afford=shop.coins>=cost;
+      const b=document.createElement("button");
+      b.className="up"+(maxed?" maxed":(afford?"":" cant"));
+      b.innerHTML='<span class="ic">'+u.ic+'</span><span class="nm">'+u.name+'</span>'+
+        '<span class="lv">Lv.'+lv+'</span>'+
+        '<span class="cost">'+(maxed?"MAX":("🪙 "+cost))+'</span>';
+      b.onclick=()=>{
+        if (maxed) return;
+        const c=upCost(u.key);
+        if (shop.coins>=c){ shop.coins-=c; shop.up[u.key]++; saveShop(); buildShop(); }
+      };
+      upWrap.appendChild(b);
+    }
+  }
+  buildShop();
+
   function startGame(){
     reset(); state=STATE.PLAY;
     document.getElementById("startScreen").classList.add("hidden");
@@ -373,7 +445,7 @@
     document.getElementById("hud").classList.remove("hidden");
   }
   function showMenu(){
-    state=STATE.MENU; buildPicker();
+    state=STATE.MENU; buildPicker(); buildShop();
     document.getElementById("startScreen").classList.remove("hidden");
     document.getElementById("overScreen").classList.add("hidden");
     document.getElementById("hud").classList.add("hidden");
@@ -385,8 +457,11 @@
   // ---- test hook ----
   window.__svtest = {
     start(){ startGame(); },
+    menu(){ showMenu(); },
     setT(x,y){ targetX=x; targetY=y; },
-    getState(){ return { state, score:Math.floor(timeAlive), level:stats.level, hp:hero.hp, enemies:enemies.length, bullets:bullets.length }; },
+    getState(){ return { state, score:Math.floor(timeAlive), level:stats.level, hp:hero.hp, maxhp:hero.maxhp, dmg:stats.dmg, runCoins, wallet:shop.coins, upDmg:shop.up.dmg, enemies:enemies.length, bullets:bullets.length }; },
+    grant(n){ shop.coins+=n; saveShop(); buildShop(); },
+    buy(key){ const c=upCost(key); if(shop.coins>=c && shop.up[key]<UP_MAX[key]){ shop.coins-=c; shop.up[key]++; saveShop(); buildShop(); return true; } return false; },
     hurt(){ hero.inv=0; hero.hp-=1; if(hero.hp<=0) gameOver(); else updateHud(); },
     forceOver(){ hero.hp=0; gameOver(); },
   };
