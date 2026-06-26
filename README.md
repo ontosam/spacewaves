@@ -10,6 +10,7 @@ Two gentle, kid-friendly browser games, tuned to be easy for a young child:
 - **[Slice Master](slicemaster/)** — swipe to slice flying fruit, chain combos, avoid the bomb.
 - **[Galaxia](galaxia/)** — slide to move, auto-fire, clear waves of diving aliens.
 - **[Number Run](numberrun/)** — steer through ×2/+10 math gates to grow your number to the finish.
+- **[Tower Survivor](survivor/)** — drag to move, auto-attack, grab gems and level up to survive the swarm.
 
 Both are single static HTML files with no dependencies, so they run great on an
 iPad in Safari.
@@ -27,6 +28,7 @@ Once Pages is turned on (see below), the games live at:
 - Slice Master: `https://ontosam.github.io/spacewaves/slicemaster/`
 - Galaxia: `https://ontosam.github.io/spacewaves/galaxia/`
 - Number Run: `https://ontosam.github.io/spacewaves/numberrun/`
+- Tower Survivor: `https://ontosam.github.io/spacewaves/survivor/`
 
 On the iPad, open the home link in Safari, tap the **Share** button, and choose
 **Add to Home Screen** — it then opens full-screen like a real app.

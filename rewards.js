@@ -14,7 +14,7 @@
   var GAMES = {
     spacewaves: "Space Waves", ballmaster: "Ball Master", starblaster: "Star Blaster",
     balloonpop: "Balloon Pop", colorhole: "Color Hole", slicemaster: "Slice Master",
-    galaxia: "Galaxia", numberrun: "Number Run"
+    galaxia: "Galaxia", numberrun: "Number Run", survivor: "Tower Survivor"
   };
 
   function blank() { return { stars: 0, plays: {}, totalPlays: 0, bests: {}, stickers: {}, lastDay: null, days: 0 }; }
@@ -54,7 +54,9 @@
     { id: "gx_play",  emoji: "👾", name: "Alien Hunter",   desc: "Play Galaxia",                test: function (d) { return d.plays.galaxia; } },
     { id: "gx_w3",    emoji: "💥", name: "Wave Crusher",   desc: "Reach wave 3 in Galaxia",     test: function (d) { return (d.bests["galaxia:level"] || 0) >= 3; } },
     { id: "nr_play",  emoji: "🔢", name: "Number Runner",  desc: "Play Number Run",             test: function (d) { return d.plays.numberrun; } },
-    { id: "nr_200",   emoji: "🧮", name: "Math Whiz",      desc: "Reach 200 in Number Run",     test: function (d) { return (d.bests.numberrun || 0) >= 200; } }
+    { id: "nr_200",   emoji: "🧮", name: "Math Whiz",      desc: "Reach 200 in Number Run",     test: function (d) { return (d.bests.numberrun || 0) >= 200; } },
+    { id: "sv_play",  emoji: "🛡️", name: "Brave Knight",   desc: "Play Tower Survivor",         test: function (d) { return d.plays.survivor; } },
+    { id: "sv_60",    emoji: "🏰", name: "Castle Guardian", desc: "Survive 60 sec in Tower Survivor", test: function (d) { return (d.bests.survivor || 0) >= 60; } }
   ];
 
   // ---- Core: record the end of a run ----
@@ -153,7 +155,8 @@
     colorhole:  [ { id: "overScreen", get: function () { return { score: num("finalScore") }; } } ],
     slicemaster:[ { id: "overScreen", get: function () { return { score: num("finalScore") }; } } ],
     galaxia:    [ { id: "overScreen", get: function () { return { score: num("finalScore"), level: num("finalWave") }; } } ],
-    numberrun:  [ { id: "overScreen", get: function () { return { score: num("finalScore") }; } } ]
+    numberrun:  [ { id: "overScreen", get: function () { return { score: num("finalScore") }; } } ],
+    survivor:   [ { id: "overScreen", get: function () { return { score: num("finalScore"), level: num("finalLevel") }; } } ]
   };
 
   function wireGame(gameId) {

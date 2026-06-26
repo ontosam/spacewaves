@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Tower Survivor — Kid Edition</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='86'>🛡️</text></svg>" />
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #214027;
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    color: #fff; touch-action: none; user-select: none;
+  }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas {
+    display: block; width: 100%; height: 100%;
+    background: #3f8a4e;
+    filter: saturate(1.35) contrast(1.04);
+  }
+
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+    background: radial-gradient(120% 120% at 50% 30%, rgba(40,90,55,.45), rgba(15,35,22,.92));
+    backdrop-filter: blur(3px);
+  }
+  .hidden { display: none !important; }
+
+  h1 {
+    font-size: clamp(38px, 11vw, 78px); margin: 0;
+    color: #ffe27a; letter-spacing: 1px;
+    text-shadow: 0 4px 0 #1f7a34, 0 0 22px rgba(0,0,0,.4);
+  }
+  h1 .sub { display:block; font-size: clamp(13px,3.6vw,20px); letter-spacing:6px; color:#bfe3c8; text-shadow:none; margin-top:6px; }
+  p.tip { font-size: clamp(15px, 4vw, 20px); color: #eafff0; max-width: 490px; line-height: 1.55; }
+
+  .speeds { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin: 16px 0 4px; }
+  .btn {
+    cursor: pointer; border: none; border-radius: 16px; margin-top: 8px;
+    padding: 16px 26px; font-size: clamp(17px, 4.6vw, 24px); font-weight: bold;
+    color: #1d3a24; background: #ffe27a;
+    box-shadow: 0 6px 0 #b9923a, 0 10px 22px rgba(0,0,0,.4);
+    transition: transform .06s ease, box-shadow .06s ease;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b9923a, 0 6px 14px rgba(0,0,0,.4); }
+  .btn.speed { background: #a6e6b8; box-shadow: 0 6px 0 #4f9d6a, 0 10px 22px rgba(0,0,0,.4); color:#1d3a24; }
+  .btn.speed:active { box-shadow: 0 2px 0 #4f9d6a, 0 6px 14px rgba(0,0,0,.4); }
+  .btn.speed .lab { display:block; font-size: .6em; font-weight: normal; opacity: .85; margin-top: 2px; }
+  .btn.speed.sel { outline: 4px solid #fff; }
+
+  #hud {
+    position: fixed; top: 12px; left: 0; right: 0; z-index: 5;
+    display: flex; justify-content: center; align-items: center; gap: 20px;
+    font-size: clamp(19px, 5.6vw, 28px); font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0,0,0,.5); pointer-events: none;
+  }
+  #hud .lbl { font-size: .5em; color: #c7f0d2; display:block; text-align:center; }
+  #hudHp { font-size: clamp(18px, 5.4vw, 26px); letter-spacing: 1px; }
+  .score-big { font-size: clamp(44px, 13vw, 96px); margin: 6px 0; color:#ffe27a; text-shadow:0 4px 0 #1f7a34; }
+  .best { color: #eafff0; font-size: clamp(15px, 4vw, 20px); }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game"></canvas></div>
+
+<div id="hud" class="hidden">
+  <div><span class="lbl">TIME</span><span id="hudTime">0</span></div>
+  <div><span class="lbl">LEVEL</span><span id="hudLevel">1</span></div>
+  <div id="hudHp">❤️❤️❤️</div>
+  <div><span class="lbl">BEST</span><span id="hudBest">0</span></div>
+</div>
+
+<div id="startScreen" class="overlay">
+  <h1>Tower&nbsp;Survivor<span class="sub">KID EDITION</span></h1>
+  <p class="tip"><b>Drag your finger</b> to move your hero. 🛡️<br>It swings at monsters all by itself!<br>Grab the <b>blue gems</b> to power up. Survive as long as you can!</p>
+  <p class="tip" style="margin-top:2px">Pick how tough:</p>
+  <div class="speeds" id="speedPicker"></div>
+  <button class="btn" id="playBtn">▶ Play</button>
+</div>
+
+<div id="overScreen" class="overlay hidden">
+  <h1 style="font-size:clamp(30px,9vw,62px)">Brave hero! 🏰</h1>
+  <div class="best" style="margin-bottom:-2px">You survived</div>
+  <div class="score-big"><span id="finalScore">0</span><span style="font-size:.4em"> sec</span></div>
+  <div class="best">Best: <span id="bestScore">0</span> sec &nbsp;·&nbsp; Level <span id="finalLevel">1</span></div>
+  <button class="btn" id="againBtn">↻ Play Again</button>
+  <button class="btn speed" id="menuBtn">⚙ Change Level</button>
+</div>
+
+<script src="../rewards.js" data-game="survivor"></script>
+<script>
+(() => {
+  "use strict";
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+
+  // ---- Presets. hp=hero hearts, dmg=attack damage, eSpd=monster speed, spawn=sec between spawns ----
+  const PRESETS = {
+    baby:   { label: "Baby",   sub: "very easy", hp: 6, dmg: 4, eSpd: 42, spawn: 1.5, ramp: 0.0 },
+    easy:   { label: "Easy",   sub: "for kids",  hp: 5, dmg: 3, eSpd: 58, spawn: 1.1, ramp: 0.12 },
+    normal: { label: "Normal", sub: "a fight",   hp: 4, dmg: 3, eSpd: 74, spawn: 0.85, ramp: 0.22 },
+  };
+  let difficulty = localStorage.getItem("sv_diff") || "easy";
+
+  // ---- Canvas ----
+  let W=0,H=0,DPR=1;
+  function resize(){
+    DPR=Math.min(window.devicePixelRatio||1,2);
+    W=window.innerWidth; H=window.innerHeight;
+    canvas.width=Math.floor(W*DPR); canvas.height=Math.floor(H*DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener("resize", resize); resize();
+
+  // ---- State (arrays init up front) ----
+  const STATE={MENU:0,PLAY:1,OVER:2};
+  let state=STATE.MENU;
+  let hero={x:0,y:0,r:20,hp:5,maxhp:5,inv:0};
+  let stats={dmg:3,fireInt:0.55,proj:1,speed:235,pickup:90,level:1,xp:0,xpNext:5};
+  let targetX=0, targetY=0;
+  let enemies=[], bullets=[], gems=[], particles=[], floaters=[];
+  let cfg=PRESETS[difficulty];
+  let timeAlive=0, best=+(localStorage.getItem("sv_best_"+difficulty)||0);
+  let spawnTimer=0, fireTimer=0, elapsed=0;
+
+  function reset(){
+    cfg=PRESETS[difficulty];
+    hero={x:W/2,y:H/2,r:Math.max(16,Math.min(24,W*0.045)),hp:cfg.hp,maxhp:cfg.hp,inv:0};
+    targetX=hero.x; targetY=hero.y;
+    stats={dmg:cfg.dmg,fireInt:0.55,proj:1,speed:235,pickup:90,level:1,xp:0,xpNext:5};
+    enemies=[]; bullets=[]; gems=[]; particles=[]; floaters=[];
+    timeAlive=0; spawnTimer=0.6; fireTimer=0; elapsed=0;
+    best=+(localStorage.getItem("sv_best_"+difficulty)||0);
+    updateHud();
+  }
+
+  // ---- Input: hero moves toward finger ----
+  function setT(e){ targetX=e.clientX; targetY=e.clientY; }
+  canvas.addEventListener("pointerdown",(e)=>{ e.preventDefault(); setT(e); });
+  canvas.addEventListener("pointermove",(e)=>{ if(state===STATE.PLAY) setT(e); });
+
+  // ---- Loop ----
+  let last=0;
+  function frame(t){
+    const dt=Math.min((t-last)/1000,0.033)||0; last=t;
+    if(state===STATE.PLAY) update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  function update(dt){
+    elapsed+=dt; timeAlive+=dt;
+    if (hero.inv>0) hero.inv-=dt;
+    const ramp = 1 + cfg.ramp*Math.min(elapsed/60,1);
+
+    // hero move toward finger
+    let hx=targetX-hero.x, hy=targetY-hero.y, hd=Math.hypot(hx,hy);
+    if (hd>2){ const step=Math.min(hd, stats.speed*dt); hero.x+=hx/hd*step; hero.y+=hy/hd*step; }
+    hero.x=Math.max(hero.r,Math.min(W-hero.r,hero.x));
+    hero.y=Math.max(hero.r+40,Math.min(H-hero.r,hero.y));
+
+    // spawn enemies from edges
+    spawnTimer-=dt;
+    if (spawnTimer<=0){ spawnTimer=cfg.spawn/ramp*(0.7+Math.random()*0.6); spawnEnemy(ramp); }
+
+    // auto-fire at nearest enemy
+    fireTimer-=dt;
+    if (fireTimer<=0 && enemies.length){
+      fireTimer=stats.fireInt;
+      const tgt=nearestEnemy();
+      if (tgt){ const ang=Math.atan2(tgt.y-hero.y,tgt.x-hero.x);
+        const spread=0.26;
+        for (let i=0;i<stats.proj;i++){ const a=ang + (i-(stats.proj-1)/2)*spread;
+          bullets.push({x:hero.x,y:hero.y,vx:Math.cos(a)*480,vy:Math.sin(a)*480,r:7,dmg:stats.dmg,life:1.4}); }
+      }
+    }
+
+    // bullets
+    for (const b of bullets){ b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt; }
+    bullets=bullets.filter(b=>b.life>0 && b.x>-20&&b.x<W+20&&b.y>-20&&b.y<H+20);
+
+    // enemies move toward hero
+    for (const e of enemies){
+      const dx=hero.x-e.x, dy=hero.y-e.y, d=Math.hypot(dx,dy)||1;
+      e.x+=dx/d*e.spd*dt; e.y+=dy/d*e.spd*dt; e.wob+=dt*8;
+      // touch hero
+      if (hero.inv<=0 && d < e.r+hero.r*0.8){ hero.hp-=1; hero.inv=1.0; pop(hero.x,hero.y,"#ff7b54",14);
+        e.x-=dx/d*30; e.y-=dy/d*30; updateHud(); if (hero.hp<=0) return gameOver(); }
+    }
+
+    // bullet vs enemy
+    for (const b of bullets){ if (b.dead) continue;
+      for (const e of enemies){ if (e.dead) continue;
+        const dx=b.x-e.x, dy=b.y-e.y, rr=e.r+b.r;
+        if (dx*dx+dy*dy<rr*rr){ b.dead=true; e.hp-=b.dmg; pop(b.x,b.y,e.color,4);
+          if (e.hp<=0){ e.dead=true; gems.push({x:e.x,y:e.y,r:7,val:e.xp,vx:0,vy:0}); pop(e.x,e.y,e.color,10); }
+          break; }
+      }
+    }
+    bullets=bullets.filter(b=>!b.dead);
+    enemies=enemies.filter(e=>!e.dead);
+
+    // gems: magnet + collect
+    for (const g of gems){ const dx=hero.x-g.x, dy=hero.y-g.y, d=Math.hypot(dx,dy)||1;
+      if (d<stats.pickup){ g.x+=dx/d*Math.min(d,360*dt); g.y+=dy/d*Math.min(d,360*dt); }
+      if (d<hero.r+6){ g.dead=true; gainXp(g.val); }
+    }
+    gems=gems.filter(g=>!g.dead);
+
+    for (const p of particles){ p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=120*dt; p.life-=dt; }
+    particles=particles.filter(p=>p.life>0);
+    for (const f of floaters){ f.y-=40*dt; f.life-=dt; }
+    floaters=floaters.filter(f=>f.life>0);
+
+    if (best<Math.floor(timeAlive)){ best=Math.floor(timeAlive); localStorage.setItem("sv_best_"+difficulty,best); }
+    updateHud();
+  }
+
+  function nearestEnemy(){
+    let bd=Infinity, bt=null;
+    for (const e of enemies){ const d=(e.x-hero.x)**2+(e.y-hero.y)**2; if (d<bd){ bd=d; bt=e; } }
+    return bt;
+  }
+
+  function spawnEnemy(ramp){
+    const big = Math.random()<0.22;
+    const r=(big?22:15)*(W<480?0.9:1);
+    // pick an edge
+    let x,y; const s=Math.floor(Math.random()*4);
+    if (s===0){ x=Math.random()*W; y=-r; } else if (s===1){ x=Math.random()*W; y=H+r; }
+    else if (s===2){ x=-r; y=Math.random()*H; } else { x=W+r; y=Math.random()*H; }
+    enemies.push({ x,y,r, spd:cfg.eSpd*ramp*(big?0.8:1)*(0.9+Math.random()*0.2),
+      hp:big?6:2, color:big?"#9b5cff":"#ff6b6b", xp:big?3:1, wob:Math.random()*6, dead:false });
+  }
+
+  function gainXp(v){
+    stats.xp+=v;
+    pop(hero.x,hero.y,"#4dd2ff",4);
+    while (stats.xp>=stats.xpNext){
+      stats.xp-=stats.xpNext; stats.level++; stats.xpNext=Math.round(stats.xpNext*1.35)+1;
+      levelUp();
+    }
+    updateHud();
+  }
+
+  function levelUp(){
+    // auto-apply a random upgrade (no menus for a little kid)
+    const ups=[
+      ()=>{ stats.dmg+=2; },
+      ()=>{ stats.fireInt=Math.max(0.18,stats.fireInt*0.85); },
+      ()=>{ if (stats.proj<5) stats.proj++; else stats.dmg+=2; },
+      ()=>{ stats.speed+=24; },
+      ()=>{ stats.pickup+=30; },
+      ()=>{ hero.maxhp+=1; hero.hp=Math.min(hero.maxhp,hero.hp+1); },
+    ];
+    ups[Math.floor(Math.random()*ups.length)]();
+    floaters.push({x:hero.x,y:hero.y-hero.r-14,text:"LEVEL UP! ⭐",life:1.1});
+    pop(hero.x,hero.y,"#ffd54a",18);
+  }
+
+  function pop(x,y,color,n){ for(let i=0;i<n;i++){ const a=Math.random()*6.28,sp=Math.random()*150+30;
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-20,life:0.45+Math.random()*0.3,color}); } }
+
+  function gameOver(){
+    state=STATE.OVER;
+    document.getElementById("finalScore").textContent=Math.floor(timeAlive);
+    document.getElementById("bestScore").textContent=best;
+    document.getElementById("finalLevel").textContent=stats.level;
+    document.getElementById("overScreen").classList.remove("hidden");
+    document.getElementById("hud").classList.add("hidden");
+  }
+
+  // ---- Draw ----
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    drawGround();
+    drawTower(W/2,H/2 - 0); // decorative castle marker at center... actually draw under hero start
+
+    // gems
+    for (const g of gems){ ctx.fillStyle="#4dd2ff"; ctx.shadowColor="#4dd2ff"; ctx.shadowBlur=8;
+      ctx.save(); ctx.translate(g.x,g.y); ctx.rotate(0.78); ctx.fillRect(-g.r*0.6,-g.r*0.6,g.r*1.2,g.r*1.2); ctx.restore(); ctx.shadowBlur=0; }
+
+    // enemies
+    for (const e of enemies) drawEnemy(e);
+
+    // bullets
+    for (const b of bullets){ ctx.fillStyle="#ffe27a"; ctx.shadowColor="#ffd54a"; ctx.shadowBlur=8; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,6.28); ctx.fill(); ctx.shadowBlur=0; }
+
+    if (state!==STATE.MENU) drawHero();
+
+    for (const p of particles){ ctx.globalAlpha=Math.max(0,p.life*2); ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,3.5,0,6.28); ctx.fill(); }
+    ctx.globalAlpha=1;
+    for (const f of floaters){ ctx.globalAlpha=Math.max(0,f.life/1.1); ctx.fillStyle="#fff"; ctx.strokeStyle="rgba(0,0,0,.35)"; ctx.lineWidth=3;
+      ctx.font="bold "+Math.round(Math.min(W,H)*0.045)+"px Trebuchet MS"; ctx.textAlign="center"; ctx.strokeText(f.text,f.x,f.y); ctx.fillText(f.text,f.x,f.y); }
+    ctx.globalAlpha=1;
+
+    if (state===STATE.PLAY) drawXpBar();
+  }
+
+  function drawGround(){
+    const t=46;
+    for (let y=0;y<H;y+=t) for (let x=0;x<W;x+=t){ ctx.fillStyle=((x/t+y/t)&1)?"#43924f":"#3f8a4e"; ctx.fillRect(x,y,t,t); }
+  }
+  function drawTower(x,y){
+    // faint castle tower marker
+    ctx.globalAlpha=0.22; ctx.fillStyle="#d8d8d8";
+    ctx.fillRect(x-26,y-26,52,52);
+    ctx.fillStyle="#bdbdbd"; for(let i=-26;i<26;i+=17) ctx.fillRect(x+i,y-34,11,10);
+    ctx.globalAlpha=1;
+  }
+  function drawEnemy(e){
+    ctx.save(); ctx.translate(e.x,e.y+Math.sin(e.wob)*1.5);
+    const g=ctx.createRadialGradient(-e.r*0.3,-e.r*0.3,e.r*0.1,0,0,e.r);
+    g.addColorStop(0,"#fff"); g.addColorStop(0.3,e.color); g.addColorStop(1,e.color);
+    ctx.fillStyle=e.color; ctx.beginPath(); ctx.arc(0,0,e.r,Math.PI,0); ctx.lineTo(e.r,e.r*0.6);
+    for(let i=0;i<4;i++){ const x=e.r - i*(e.r*2/3.5); ctx.lineTo(x, e.r*0.6+(i%2?5:0)); }
+    ctx.lineTo(-e.r,e.r*0.6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(-e.r*0.3,-e.r*0.1,e.r*0.22,0,6.28); ctx.arc(e.r*0.3,-e.r*0.1,e.r*0.22,0,6.28); ctx.fill();
+    ctx.fillStyle="#222"; ctx.beginPath(); ctx.arc(-e.r*0.3,-e.r*0.05,e.r*0.1,0,6.28); ctx.arc(e.r*0.3,-e.r*0.05,e.r*0.1,0,6.28); ctx.fill();
+    ctx.restore();
+  }
+  function drawHero(){
+    if (hero.inv>0 && Math.floor(hero.inv*12)%2===0){} // (kept visible; flashing handled by ring)
+    const x=hero.x,y=hero.y,r=hero.r;
+    ctx.save(); ctx.translate(x,y);
+    ctx.fillStyle="rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(0,r*0.95,r*0.9,r*0.3,0,0,6.28); ctx.fill();
+    // body (knight)
+    ctx.fillStyle="#4dabf7"; ctx.beginPath(); ctx.arc(0,0,r,0,6.28); ctx.fill();
+    ctx.fillStyle="#cfe8ff"; ctx.beginPath(); ctx.arc(0,-r*0.1,r*0.6,Math.PI,0); ctx.fill(); // helmet
+    ctx.fillStyle="#16324a"; ctx.fillRect(-r*0.5,-r*0.1,r,r*0.18); // visor
+    // shield glint when hit
+    if (hero.inv>0){ ctx.strokeStyle="rgba(255,255,255,.8)"; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,0,r+5,0,6.28); ctx.stroke(); }
+    ctx.restore();
+  }
+  function drawXpBar(){
+    const bw=Math.min(W*0.7,420), bh=10, x=(W-bw)/2, y=H-26;
+    ctx.fillStyle="rgba(0,0,0,.3)"; ctx.fillRect(x,y,bw,bh);
+    ctx.fillStyle="#4dd2ff"; ctx.fillRect(x,y, bw*Math.max(0,Math.min(1,stats.xp/stats.xpNext)), bh);
+    ctx.strokeStyle="rgba(255,255,255,.6)"; ctx.lineWidth=2; ctx.strokeRect(x,y,bw,bh);
+  }
+
+  // ---- HUD / UI ----
+  function updateHud(){
+    document.getElementById("hudTime").textContent=Math.floor(timeAlive);
+    document.getElementById("hudLevel").textContent=stats.level;
+    document.getElementById("hudBest").textContent=Math.max(best,Math.floor(timeAlive));
+    const hp=Math.max(0,hero.hp), empty=Math.max(0,hero.maxhp-hp);
+    document.getElementById("hudHp").textContent="❤️".repeat(hp)+"🖤".repeat(empty);
+  }
+
+  const picker=document.getElementById("speedPicker");
+  function buildPicker(){
+    picker.innerHTML="";
+    for (const key of Object.keys(PRESETS)){
+      const p=PRESETS[key];
+      const b=document.createElement("button");
+      b.className="btn speed"+(key===difficulty?" sel":"");
+      b.innerHTML=p.label+'<span class="lab">'+p.sub+"</span>";
+      b.onclick=()=>{ difficulty=key; localStorage.setItem("sv_diff",key); buildPicker(); };
+      picker.appendChild(b);
+    }
+  }
+  buildPicker();
+
+  function startGame(){
+    reset(); state=STATE.PLAY;
+    document.getElementById("startScreen").classList.add("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("hud").classList.remove("hidden");
+  }
+  function showMenu(){
+    state=STATE.MENU; buildPicker();
+    document.getElementById("startScreen").classList.remove("hidden");
+    document.getElementById("overScreen").classList.add("hidden");
+    document.getElementById("hud").classList.add("hidden");
+  }
+  document.getElementById("playBtn").onclick=startGame;
+  document.getElementById("againBtn").onclick=startGame;
+  document.getElementById("menuBtn").onclick=showMenu;
+
+  // ---- test hook ----
+  window.__svtest = {
+    start(){ startGame(); },
+    setT(x,y){ targetX=x; targetY=y; },
+    getState(){ return { state, score:Math.floor(timeAlive), level:stats.level, hp:hero.hp, enemies:enemies.length, bullets:bullets.length }; },
+    hurt(){ hero.inv=0; hero.hp-=1; if(hero.hp<=0) gameOver(); else updateHud(); },
+    forceOver(){ hero.hp=0; gameOver(); },
+  };
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
